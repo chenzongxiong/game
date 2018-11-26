@@ -1,0 +1,97 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>Flask-SocketIO Test</title>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css">
+
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+    <script type="text/javascript" charset="utf-8">
+     $(document).ready(function() {
+       // An application can open a connection on multiple namespaces, and
+       // Socket.IO will multiplex all those connections on a single
+       // physical channel. If you don't care about multiple channels, you
+       // can set the namespace to an empty string.
+       var socket = null;
+       // Connect to the Socket.IO server.
+       // The connection URL has the following format:
+       //     http[s]://<domain>:<port>[/<namespace>]
+       var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + "/dice");
+       var socket_default = io.connect(location.protocol + '//' + document.domain + ':' + location.port + "/waitingboard/default");
+       var socket_eth = io.connect(location.protocol + '//' + document.domain + ':' + location.port + "/waitingboard/eth");
+       var socket_eos = io.connect(location.protocol + '//' + document.domain + ':' + location.port + "/waitingboard/eos");
+
+       // Event handler for new connections.
+       // The callback function is invoked when a connection with the
+       // server is established.
+       socket.on('connect', function() {
+         socket.emit('default_request', {data: 'I\'m connected!'});
+         console.log("invoke `connect` action.");
+       });
+
+       // Event handler for server sent data.
+       // The callback function is invoked whenever the server emits data
+       // to the client. The data is then displayed in the "Received"
+       // section of the page.
+       socket.on('response', function(msg) {
+         console.log(msg);
+       });
+
+       $('form#toss').submit(function(event) {
+         socket.emit('toss', {"userid": "userid", "fee": 1, "type": "EOS"});
+         return false;
+       });
+
+       $('form#join').submit(function(event) {
+         socket.emit('join', {"userid": $('#userid').val(), "fee": $('#fee').val(), "type": $('#type').val()});
+         return false;
+       });
+
+       socket_default.on('connect', function() {
+         console.log("default socket invoke `connect` action.");
+       });
+       socket_eth.on('connect', function() {
+         console.log("eth socket invoke `connect` action.");
+       });
+       socket_eos.on('connect', function() {
+         console.log("eos socket invoke `connect` action.");
+       });
+
+       socket_default.on('response', function(msg) {
+         console.log(msg);
+       });
+
+       socket_eos.on('response', function(msg) {
+         console.log(msg);
+       });
+
+       socket_eth.on('response', function(msg) {
+         console.log(msg);
+       });
+     });
+
+
+    </script>
+  </head>
+  <body>
+    <h1>Flask-SocketIO Test</h1>
+    <p>Async mode is: <b>{{ async_mode }}</b></p>
+    <p>Average ping/pong latency: <b><span id="ping-pong"></span>ms</b></p>
+    <h2>Send:</h2>
+    <form id="toss" method="POST" action='#'>
+      <input type="text" name="emit_data" id="emit_data" placeholder="Message">
+      <input type="submit" value="Toss">
+    </form>
+    <form id="join" method="POST" action='#'>
+      <input type="text" name="userid" id="userid" placeholder="Userid">
+      <input type="text" name="fee" id="fee" placeholder="Fee">
+      <input type="text" name="type" id="type" placeholder="EOS/ETH/DEFAULT">
+      <input type="submit" value="Join">
+    </form>
+    <form id="disconnect" method="POST" action="#">
+      <input type="submit" value="Disconnect">
+    </form>
+    <h2>Receive:</h2>
+    <div id="log"></div>
+  </body>
+</html>
