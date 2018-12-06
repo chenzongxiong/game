@@ -33,6 +33,10 @@ private:
     static const uint8_t DOWN = 3;
     static const uint8_t MAXGOALS = 10;
     static const int64_t FEE = 10000; // 1 EOS
+    static const uint32_t GAME_CLOSE = 1;
+    static const uint32_t GAME_START = 2;
+    static const uint32_t GAME_CONTINUE = 4;
+    static const uint32_t GAME_OVER = 8;
 
     // enum direction : uint8_t {
     //     RIGHT = 0,
@@ -100,6 +104,7 @@ public:
 
         uint64_t uuid;
         uint32_t pos;
+        uint32_t status;
         // std::string gamename;
         std::vector<uint32_t> goals;
         static const uint32_t board_width = 30;
@@ -118,6 +123,7 @@ public:
             eosio::print("board_width:", board_width, ", ");
             eosio::print("board_height:", board_height, ", ");
             eosio::print("pos:", pos, ", ");
+            eosio::print("status: ", status, ", ");
             point pt = point(pos);
             // t.debug();
             eosio::print("row: ", pt.row, ", ");
@@ -163,7 +169,7 @@ public:
 
     // [[eosio::action]] void addgame(std::string gamename);
     [[eosio::action]] void addgame();
-
+    [[eosio::action]] void startgame(uint64_t gameuuid);
     [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint64_t total); // schedule users
     [[eosio::action]] void getusers() const;         // extract latest scheduled users information
@@ -199,6 +205,10 @@ private:
         }
         return false;
     }
+
+    // 1. check game status, over or continue, close, start,
+    // 2. distribute tokens
+    void update_game_status(uint64_t gameuuid);
 
     // auto get_game_by_username(const eosio::name user, uint64_t gameuuid) {
     //     std::vector<users> _users_vec;

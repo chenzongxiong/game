@@ -5,25 +5,6 @@
 void dice::version() {
     eosio::print(_VERSION.c_str(), ", self: ", get_self());
 }
-
-int dice::random() {
-    return 1;
-}
-// action
-void dice::addgame() {
-    // TODO: require authority, only our platform has right to add a new game
-    // TODO: random initialize a game postion
-    // TODO: random initialize a set of goals
-    require_auth(get_self());
-    uint64_t uuid = _games.available_primary_key();
-    // eosio::print("uuid1: ", uuid, ", ");
-    uuid = _games.available_primary_key();
-    // eosio::print("uuid2: ", uuid, ", ");
-    _games.emplace(get_self(), [&](auto &g) {
-                                   g.uuid = uuid;
-                                   g.pos = 0x00010002;
-                               });
-}
 // action
 void dice::debug() {
     // for (auto &_game : _games) {
@@ -62,6 +43,35 @@ void dice::debug() {
     // for (auto &_user : latest_scheduled_users) {
     //     _user.debug();
     // }
+}
+
+int dice::random() {
+    return 1;
+}
+// action
+void dice::addgame() {
+    // TODO: require authority, only our platform has right to add a new game
+    // TODO: random initialize a game postion
+    // TODO: random initialize a set of goals
+    require_auth(get_self());
+    uint64_t uuid = _games.available_primary_key();
+    // eosio::print("uuid1: ", uuid, ", ");
+    uuid = _games.available_primary_key();
+    // eosio::print("uuid2: ", uuid, ", ");
+    _games.emplace(get_self(), [&](auto &g) {
+                                   g.uuid = uuid;
+                                   g.pos = 0x00010002;
+                                   g.status = GAME_CLOSE;
+                               });
+}
+// action
+void dice::startgame(uint64_t gameuuid) {
+    require_auth(get_self());
+    auto _game = get_game_by_uuid(gameuuid);
+    _games.modify(_game, get_self(), [&](auto &g){
+                                         g.status = GAME_START;
+                                     });
+
 }
 
 void dice::transfer(eosio::name from, eosio::name to, int64_t amount) {
@@ -263,8 +273,8 @@ void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     _game->debug();
 }
 
-
 EOSIO_DISPATCH(dice,
                (version)(addgame)(debug)
+               (startgame)
                (enter)(schedusers)
                (moveright)(moveleft)(moveup)(movedown))
