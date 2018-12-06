@@ -48,6 +48,10 @@ cleos wallet import -n cardgamewal --private-key 5KFyaxQW8L6uXFB6wSgC44EsAbzC7id
 cleos create account eosio cardgameacc EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 cleos create account eosio eosio.token EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 cleos create account eosio player1 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio player2 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio player3 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio player4 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio player5 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 # echo "=== deploy smart contract ==="
 # $1 smart contract name
 # $2 account holder name of the smart contract
@@ -58,6 +62,10 @@ cleos set contract eosio.token /opt/eosio/contracts/eosio.token --abi eosio.toke
 cleos push action eosio.token create '[ "cardgameacc", "1000000000.0000 EOS"]' -p eosio.token@active
 cleos push action eosio.token issue '[ "cardgameacc", "100000000.0000 EOS", "cardgameacc" ]' -p cardgameacc@active
 cleos push action eosio.token issue '[ "player1", "100000000.0000 EOS", "player1" ]' -p cardgameacc@active
+cleos push action eosio.token issue '[ "player2", "100000000.0000 EOS", "player2" ]' -p cardgameacc@active
+cleos push action eosio.token issue '[ "player3", "100000000.0000 EOS", "player3" ]' -p cardgameacc@active
+cleos push action eosio.token issue '[ "player4", "100000000.0000 EOS", "player4" ]' -p cardgameacc@active
+cleos push action eosio.token issue '[ "player5", "100000000.0000 EOS", "player5" ]' -p cardgameacc@active
 
 echo "=== create user accounts ==="
 # script for create data into blockchain
