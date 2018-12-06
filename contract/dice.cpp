@@ -44,10 +44,33 @@ void dice::debug() {
     // for (auto &_user : latest_scheduled_users) {
     //     _user.debug();
     // }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
+    random();
+    // callback();
 }
 
 int dice::random() {
+    print("Sending query to Oraclize...");
+    uint8_t N = 1; // Possible outputs: [0-255]
+    uint32_t delay = 10;
+    oraclize_newRandomDSQuery(delay, N);
     return 1;
+
+}
+
+void dice::callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof) {
+
+    // require_auth(oraclize_cbAddress());
+
+    if (oraclize_randomDS_proofVerify(queryId, result, proof, _self) != 0) {
+        // The proof verification has failed, manage this use case...
+    }
+    else {
+        uint8_t result_int = 0;
+        std::memcpy(&result_int, &result[0], result.size());
+        print("Number: ");
+        printi(result_int);
+    }
 }
 // action
 void dice::addgame() {
@@ -80,11 +103,6 @@ void dice::startgame(uint64_t gameuuid) {
 
 void dice::transfer(eosio::name from, eosio::name to, int64_t amount) {
     // NOTE: cleos set account permission your_account active '{"threshold": 1,"keys": [{"key": "EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4","weight": 1}],"accounts": [{"permission":{"actor":"your_contract","permission":"eosio.code"},"weight":1}]}' owner -p your_account
-    // eosio::name from = "arestest4321"_n;
-    // eosio::name to = "arestest1234"_n;
-    // eosio::name from = "player1"_n;
-    // eosio::name to = "cardgameacc"_n;
-    // eosio::eosio_assert();
     eosio_assert(amount > 0, "amount < 0");
 
     eosio::name permission = "active"_n;

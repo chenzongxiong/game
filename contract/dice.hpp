@@ -8,6 +8,9 @@
  * DONE: entering game, transfer tokens to our platform
  * DONE: put into a waiting pools, get
  * TODO: call random function
+ * TODO: adoid overlapping of steps in map
+ * TODO: show waiting timestamp
+ * TODO: validate route steps
  */
 
 class [[eosio::contract]] dice : public eosio::contract {
@@ -22,8 +25,9 @@ public:
 
 private:
     std::string _VERSION = "0.1.2";
-    // TODO:
+    // TODO: urging
     int random();
+    void callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof);
 
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr int64_t FEE = 10000; // 1 EOS
