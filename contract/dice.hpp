@@ -4,12 +4,10 @@
 
 
 #define DEBUG
-/* TODO:
+/* DOING:
  * DONE: entering game, transfer tokens to our platform
  * DONE: put into a waiting pools, get
  * TODO: call random function
- * TODO:
- * TODO:
  */
 
 class [[eosio::contract]] dice : public eosio::contract {
@@ -23,21 +21,19 @@ public:
     struct game;
 
 private:
-    std::string _VERSION = "0.0.2";
+    std::string _VERSION = "0.1.2";
     // TODO:
     int random();
 
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr int64_t FEE = 10000; // 1 EOS
     static constexpr float WINNER_PERCENT = 0.7;
-    static constexpr float PARTICIPANTS_PERCENT = 0.1;
+    static constexpr float PARTICIPANTS_PERCENT = 0.05;
 
-
-    static constexpr uint8_t RIGHT = 0;
-    static constexpr uint8_t LEFT = 1;
-    static constexpr uint8_t UP = 2;
-    static constexpr uint8_t DOWN = 3;
-
+    // static constexpr uint8_t RIGHT = 0;
+    // static constexpr uint8_t LEFT = 1;
+    // static constexpr uint8_t UP = 2;
+    // static constexpr uint8_t DOWN = 3;
 
     static constexpr uint32_t GAME_CLOSE = 1;
     static constexpr uint32_t GAME_START = 2;
@@ -161,22 +157,27 @@ public:
     usertable scheduled_users; // the users in this vector already get a line number, but not toss a dice
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
 
-    // [[eosio::action]] void addgame(std::string gamename);
     [[eosio::action]] void addgame();
     [[eosio::action]] void startgame(uint64_t gameuuid);
 
     [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
+    // call it from offchain every 100 ms/1 s
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint64_t total); // schedule users
-    [[eosio::action]] void getusers() const;         // extract latest scheduled users information
 
     [[eosio::action]] void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     [[eosio::action]] void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
     [[eosio::action]] void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
     [[eosio::action]] void movedown(eosio::name user, uint64_t gameuuid, uint32_t steps);
 
-    [[eosio::action]] void getawards();
+
+    [[eosio::action]] void getusers() const; // extract latest scheduled users information, users to toss dices
+    [[eosio::action]] void getawards();    // get current awards
     [[eosio::action]] void getshaawards(); // get shadow awards
 
+    // TODO:
+    [[eosio::action]] void setfee(int64_t fee); // set fee for current games
+    [[eosio::action]] void setwidth(uint32_t w);
+    [[eosio::action]] void setheight(uint32_t h);
 
 private:
     auto get_game_by_uuid(uint64_t uuid) {
@@ -192,9 +193,6 @@ private:
                                              g.pos = pt.to_pos();
                                          });
     }
-    // std::vector<users> _get_user_by_username(const eosio::name user) { // we only need users in different game
-
-    // }
     bool is_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
         for (auto _user : scheduled_users) {
             if (_user.user == user &&
@@ -204,16 +202,11 @@ private:
         }
         return false;
     }
-
     // 1. check game status, over or continue, close, start,
     // 2. distribute tokens
-    // void check_game_status(game &_game);
     bool reach_goal(const game &_game);
-    // void distribute(const users& winner, std::vector<users> participants, const int64_t awards);
-    void distribute(const game& _game,
-        const users& winner, std::vector<users> participants);
-
-    void closegame(const game &_game) {
+    void distribute(const game& _game, const users& winner, std::vector<users> participants);
+    void close_game(const game &_game) {
         for (auto _goal : _game.goals) {
             if (_goal != DELETED_GOAL) {
                 // still has some goals, open it
@@ -235,7 +228,6 @@ private:
                                              g.shadow_awards -= fee;
                                          });
     }
-
     void incr_game_awards(const game &_game, const int64_t fee) {
         _games.modify(_game, get_self(), [&](auto &g){
                                              g.awards += fee;
@@ -246,7 +238,7 @@ private:
                                              g.awards -= fee;
                                          });
     }
-    auto pre_move_validation(eosio::name user, uint64_t gameuuid) {
+    auto prepare_movement(eosio::name user, uint64_t gameuuid) {
         require_auth(get_self());
         bool valid_user_game = is_user_in_game(user, gameuuid);
         eosio_assert(valid_user_game, "user not in game");
@@ -254,5 +246,9 @@ private:
         eosio_assert(_game->status == GAME_START, "game does not start");
         incr_game_awards(*_game, FEE);
         return _game;
+    }
+    // TODO: urging
+    void set_game_goals(game &_game) {
+
     }
 };

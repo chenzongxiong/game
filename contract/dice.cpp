@@ -1,5 +1,6 @@
-#include "dice.hpp"
 #include <eosiolib/asset.hpp>
+#include "dice.hpp"
+#include "oraclize/eos_api.hpp"
 
 // action
 void dice::version() {
@@ -199,7 +200,7 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
     // DONE: update steps
-    // auto _game = pre_move_validation(user, gameuuid);
+    // auto _game = prepare_movement(user, gameuuid);
     require_auth(get_self());
     bool valid_user_game = is_user_in_game(user, gameuuid);
     eosio_assert(valid_user_game, "user not in game");
@@ -229,21 +230,12 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
         // distribute tokens
         // TODO
         // distribute(user, , _game->awards);
-        closegame(*_game);
+        close_game(*_game);
     }
 }
-
 // action
 void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-    // TODO: check valid user;
-    // DONE: check valid steps
-    // DONE: update steps
-    require_auth(get_self());
-    bool valid_user_game = is_user_in_game(user, gameuuid);
-    eosio_assert(valid_user_game, "user not in game");
-
-    auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game->status == GAME_START, "game does not start");
+    auto _game = prepare_movement(user, gameuuid);
 
     point pt = point(_game->pos);
     // overflow
@@ -266,18 +258,13 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     if (is_won) {
         // TODO:
         // distribute(user, , _game->awards);
-        closegame(*_game);
+        close_game(*_game);
     }
 
 }
 // action
 void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-    require_auth(get_self());
-    bool valid_user_game = is_user_in_game(user, gameuuid);
-    eosio_assert(valid_user_game, "user not in game");
-
-    auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game->status == GAME_START, "game does not start");
+    auto _game = prepare_movement(user, gameuuid);
 
     point pt = point(_game->pos);
     // overflow
@@ -300,18 +287,13 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // if (is_won) {
     //     // TODO:
     //     // distribute(user, , _game->awards);
-    //     closegame(*_game);
+    //     close_game(*_game);
     // }
 
 }
 // action
 void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-    require_auth(get_self());
-    bool valid_user_game = is_user_in_game(user, gameuuid);
-    eosio_assert(valid_user_game, "user not in game");
-
-    auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game->status == GAME_START, "game does not start");
+    auto _game = prepare_movement(user, gameuuid);
 
     point pt = point(_game->pos);
     pt.debug();
@@ -330,7 +312,7 @@ void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     if (is_won) {
         // TODO:
         // distribute(user, , _game->awards);
-        closegame(*_game);
+        close_game(*_game);
     }
 }
 
@@ -339,7 +321,6 @@ bool dice::reach_goal(const game &_game) {
     int idx = 0;
     for (auto &_goal : _game.goals) {
         if (_goal == _game.pos && _goal != DELETED_GOAL) {
-
             // someone reaches exactly the goal
             // 1. remove this goal
             // 2. transfer EOS tokens
