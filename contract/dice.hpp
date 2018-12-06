@@ -27,29 +27,23 @@ private:
     // TODO:
     int random();
 
-    static const uint8_t RIGHT = 0;
-    static const uint8_t LEFT = 1;
-    static const uint8_t UP = 2;
-    static const uint8_t DOWN = 3;
-    static const uint8_t MAXGOALS = 10;
-    static const int64_t FEE = 10000; // 1 EOS
-    static const uint32_t GAME_CLOSE = 1;
-    static const uint32_t GAME_START = 2;
-    static const uint32_t GAME_CONTINUE = 4;
-    static const uint32_t GAME_OVER = 8;
+    static constexpr uint8_t MAXGOALS = 10;
+    static constexpr int64_t FEE = 10000; // 1 EOS
+    static constexpr float WINNER_PERCENT = 0.7;
+    static constexpr float PARTICIPANTS_PERCENT = 0.1;
 
-    // enum direction : uint8_t {
-    //     RIGHT = 0,
-    //     LEFT = 1,
-    //     UP = 2,
-    //     DOWN = 3
-    // };
 
-    // enum postype : uint8_t {
-    //     GOAL = 0,
-    //     AVAIABLE = 1,
-    //     BARRIER = 2
-    // };
+    static constexpr uint8_t RIGHT = 0;
+    static constexpr uint8_t LEFT = 1;
+    static constexpr uint8_t UP = 2;
+    static constexpr uint8_t DOWN = 3;
+
+
+    static constexpr uint32_t GAME_CLOSE = 1;
+    static constexpr uint32_t GAME_START = 2;
+    // static constexpr uint32_t GAME_CONTINUE = 4;
+    static constexpr uint32_t GAME_OVER = 8;
+    static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
     struct point {
         uint32_t row;
@@ -70,9 +64,9 @@ private:
         }
     };
 
-    static void set_game_pos(game &_game, point &pt) {
-        _game.pos = pt.to_pos();
-    }
+    // static void set_game_pos(game &_game, point &pt) {
+    //     _game.pos = pt.to_pos();
+    // }
     bool is_valid_steps (uint16_t steps) {
         if (steps >= 1 && steps <= 6 ) {
             return true;
@@ -92,8 +86,6 @@ private:
 
     // TODO: mark it as private
     void transfer(eosio::name from, eosio::name to, int64_t amount);
-    // std::map<uint64_t, std::string> gamename_uuid_map;
-
 
 public:
 
@@ -105,6 +97,7 @@ public:
         uint64_t uuid;
         uint32_t pos;
         uint32_t status;
+        int64_t awards;
         // std::string gamename;
         std::vector<uint32_t> goals;
         static const uint32_t board_width = 30;
@@ -170,6 +163,7 @@ public:
     // [[eosio::action]] void addgame(std::string gamename);
     [[eosio::action]] void addgame();
     [[eosio::action]] void startgame(uint64_t gameuuid);
+
     [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint64_t total); // schedule users
     [[eosio::action]] void getusers() const;         // extract latest scheduled users information
@@ -208,31 +202,21 @@ private:
 
     // 1. check game status, over or continue, close, start,
     // 2. distribute tokens
-    void update_game_status(uint64_t gameuuid);
+    // void check_game_status(game &_game);
+    bool reach_goal(const game &_game);
+    // void distribute(const eosio::name from, const eosio::name to, const int64_t awards);
+    void distribute(const users& winner, std::vector<users> participants, const int64_t awards);
+    void closegame(const game &_game) {
 
-    // auto get_game_by_username(const eosio::name user, uint64_t gameuuid) {
-    //     std::vector<users> _users_vec;
-    //     // std::set<uint64_t> book_keeping;
-    //     for (auto _user : scheduled_users) {
-    //         // auto bk = book_keeping.find(_user.game_uuid);
-    //         // if (bk != book_keeping.end()) {
-    //         //     continue;
-    //         // }
-    //         if (_user.user == user &&
-    //             _user.gameuuid == gameuuid) {
-    //             _users_vec.push_back(_user);
-    //             // book_keeping.insert(_user.game_uuid);
-    //         }
-    //     }
-    //     if (_users_vec.size() == 0) {
-    //         eosio_assert(false, "not found user");
-    //     }
-    //     return _users_vec;
+        for (auto _goal : _game.goals) {
+            if (_goal != DELETED_GOAL) {
+                // still has some goals, open it
+                return;
+            }
+        }
 
-
-    //     // std::vector<users> _users_vec = _get_user_by_username(user);
-    //     // for (auto _user : _users_vec) {
-    //     //     _user.game_uuid
-    //     // }
-    // }
+        _games.modify(_game, get_self(), [&](auto &g){
+                                          g.status = GAME_OVER;
+                                      });
+    }
 };
