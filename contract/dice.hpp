@@ -5,8 +5,8 @@
 
 #define DEBUG
 /* TODO:
- * TODO: entering game, transfer tokens to our platform
- * TODO: put into a waiting pools, get
+ * DONE: entering game, transfer tokens to our platform
+ * DONE: put into a waiting pools, get
  * TODO: call random function
  * TODO:
  * TODO:
@@ -97,7 +97,8 @@ public:
         uint64_t uuid;
         uint32_t pos;
         uint32_t status;
-        int64_t awards;
+        int64_t awards;         // the number of tokens we will distribute
+        int64_t shadow_awards;  // the number of tokens we collect in this game
         // std::string gamename;
         std::vector<uint32_t> goals;
         static const uint32_t board_width = 30;
@@ -173,6 +174,10 @@ public:
     [[eosio::action]] void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
     [[eosio::action]] void movedown(eosio::name user, uint64_t gameuuid, uint32_t steps);
 
+    [[eosio::action]] void getawards();
+    [[eosio::action]] void getshaawards(); // get shadow awards
+
+
 private:
     auto get_game_by_uuid(uint64_t uuid) {
         auto _game = _games.find(uuid);
@@ -204,10 +209,11 @@ private:
     // 2. distribute tokens
     // void check_game_status(game &_game);
     bool reach_goal(const game &_game);
-    // void distribute(const eosio::name from, const eosio::name to, const int64_t awards);
-    void distribute(const users& winner, std::vector<users> participants, const int64_t awards);
-    void closegame(const game &_game) {
+    // void distribute(const users& winner, std::vector<users> participants, const int64_t awards);
+    void distribute(const game& _game,
+        const users& winner, std::vector<users> participants);
 
+    void closegame(const game &_game) {
         for (auto _goal : _game.goals) {
             if (_goal != DELETED_GOAL) {
                 // still has some goals, open it
@@ -218,5 +224,35 @@ private:
         _games.modify(_game, get_self(), [&](auto &g){
                                           g.status = GAME_OVER;
                                       });
+    }
+    void incr_game_shadow_awards(const game &_game, const int64_t fee) {
+        _games.modify(_game, get_self(), [&](auto &g){
+                                             g.shadow_awards += fee;
+                                         });
+    }
+    void desc_game_shadow_awards(const game &_game, const int64_t fee) {
+        _games.modify(_game, get_self(), [&](auto &g){
+                                             g.shadow_awards -= fee;
+                                         });
+    }
+
+    void incr_game_awards(const game &_game, const int64_t fee) {
+        _games.modify(_game, get_self(), [&](auto &g){
+                                             g.awards += fee;
+                                         });
+    }
+    void desc_game_awards(const game &_game, const int64_t fee) {
+        _games.modify(_game, get_self(), [&](auto &g){
+                                             g.awards -= fee;
+                                         });
+    }
+    auto pre_move_validation(eosio::name user, uint64_t gameuuid) {
+        require_auth(get_self());
+        bool valid_user_game = is_user_in_game(user, gameuuid);
+        eosio_assert(valid_user_game, "user not in game");
+        auto _game = get_game_by_uuid(gameuuid);
+        eosio_assert(_game->status == GAME_START, "game does not start");
+        incr_game_awards(*_game, FEE);
+        return _game;
     }
 };

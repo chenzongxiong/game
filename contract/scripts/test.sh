@@ -4,6 +4,7 @@ echo "====================VERSION===================="
 $cleos push action cardgameacc version '{}' -p cardgameacc -f
 echo "====================add game===================="
 $cleos push action cardgameacc addgame '{}' -p cardgameacc -f
+$cleos push action cardgameacc startgame '{"gameuuid": 0}' -p cardgameacc -f
 echo "====================debug===================="
 $cleos push action cardgameacc debug '{}' -p cardgameacc -f
 echo "====================enter===================="

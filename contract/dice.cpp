@@ -59,11 +59,12 @@ void dice::addgame() {
     // uuid = _games.available_primary_key();
     // eosio::print("uuid2: ", uuid, ", ");
     _games.emplace(get_self(), [&](auto &g) {
-                                   // g.uuid = uuid;
                                    g.uuid = _games.available_primary_key();
                                    g.pos = 0x00010002;
                                    g.status = GAME_CLOSE;
+                                   // g.status = GAME_START;
                                    g.awards = 0;
+                                   g.shadow_awards = 0;
                                });
 }
 // action
@@ -103,8 +104,13 @@ void dice::enter(eosio::name user, uint64_t gameuuid) {
     // TODO: check waiting for success, make sure we get EOS
     // TODO: timestamp every users
     require_auth(get_self());
+    auto _game = get_game_by_uuid(gameuuid);
     transfer(user, get_self(), FEE);
+    // TODO: game close or start?
+    // eosio_assert(_game->status == GAME_START, "game does not start");
+    // update_game_shadow_awards(*_game);
 
+    incr_game_shadow_awards(*_game, FEE);
     // auto g_it = _games.cbegin();
     // while (g_it != _games.cend()) {
     //     if (g_it->gamename == gamename) {
@@ -115,11 +121,6 @@ void dice::enter(eosio::name user, uint64_t gameuuid) {
     // if (g_it == _games.cend()) {
     //     eosio_assert(false, "invalid gamename");
     // }
-
-    auto _game = get_game_by_uuid(gameuuid);
-    // check game starts or not
-    eosio_assert(_game->status == GAME_START, "game does not start");
-
     _waitingpool.emplace(get_self(), [&](auto &u) {
                                          u.uuid= _waitingpool.available_primary_key();
                                          u.gameuuid = _game->uuid;
@@ -130,6 +131,7 @@ void dice::enter(eosio::name user, uint64_t gameuuid) {
                                      });
 
 }
+
 // action
 void dice::schedusers(uint64_t gameuuid, uint64_t total) {
     // DONE: authorization, only platform could run schedulers
@@ -197,12 +199,13 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
     // DONE: update steps
+    // auto _game = pre_move_validation(user, gameuuid);
     require_auth(get_self());
     bool valid_user_game = is_user_in_game(user, gameuuid);
     eosio_assert(valid_user_game, "user not in game");
 
     auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game->status == GAME_START, "game does not start");
+    // eosio_assert(_game->status == GAME_START, "game does not start");
 
     point pt = point(_game->pos);
     // overflow
@@ -219,7 +222,8 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     eosio::print("move right");
     _game->debug();
 
-    // DONE: checking win or not ?
+    // // DONE: checking win or not ?
+
     bool is_won = reach_goal(*_game);
     if (is_won) {
         // distribute tokens
@@ -228,6 +232,7 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
         closegame(*_game);
     }
 }
+
 // action
 void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // TODO: check valid user;
@@ -249,7 +254,7 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     pt.row = pt.row - steps;
     bool valid = is_valid_pos(*_game, pt);
     if (! valid) {
-        eosio_assert(false, "invalid right steps");
+        eosio_assert(false, "invalid left steps");
     }
 
     update_game_pos(*_game, pt);
@@ -292,11 +297,11 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     // DONE: checking win or not ?
     bool is_won = reach_goal(*_game);
-    if (is_won) {
-        // TODO:
-        // distribute(user, , _game->awards);
-        closegame(*_game);
-    }
+    // if (is_won) {
+    //     // TODO:
+    //     // distribute(user, , _game->awards);
+    //     closegame(*_game);
+    // }
 
 }
 // action
@@ -349,11 +354,13 @@ bool dice::reach_goal(const game &_game) {
     return false;
 }
 
-void dice::distribute(const users& winner,
-                      std::vector<users> participants,
-                      const int64_t awards) {
+void dice::distribute(const game& _game,
+                      const users& winner,
+                      std::vector<users> participants) {
     // winner gets WINNER_PERCENTS
     // PARTICIPANTS get PARTICPANTS PERCENTS
+    // TODO: reach a goal, we distribute token to all participants, just for fun.
+    const int64_t awards = _game.awards;
     int64_t winner_amount = awards * WINNER_PERCENT;
     int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
     if (winner_amount <= 0 ||
@@ -367,6 +374,8 @@ void dice::distribute(const users& winner,
     for (auto part : participants) {
         transfer(platform, part.user, participants_amount);
     }
+
+    desc_game_shadow_awards(_game, awards);
 }
 
 
