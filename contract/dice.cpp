@@ -6,6 +6,7 @@
 void dice::version() {
     eosio::print(_VERSION.c_str(), ", self: ", get_self());
 }
+
 // action
 void dice::debug() {
     // for (auto &_game : _games) {
@@ -45,23 +46,37 @@ void dice::debug() {
     //     _user.debug();
     // }
     eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
-    random();
+    // random();
     // callback();
 }
-
-int dice::random() {
+// action
+void dice::getrnd() {
     print("Sending query to Oraclize...");
     uint8_t N = 1; // Possible outputs: [0-255]
-    uint32_t delay = 10;
-    oraclize_newRandomDSQuery(delay, N);
-    return 1;
+    // uint32_t delay = 10;
+    uint32_t delay = 0;
+    capi_checksum256 query_id = oraclize_newRandomDSQuery(delay, N);
 
+    uint128_t queryid_lsb = 0;
+    uint128_t queryid_msb = 0;
+
+    queryid_lsb |= query_id.hash[3]; queryid_lsb <<= 32;
+    queryid_lsb |= query_id.hash[2]; queryid_lsb <<= 32;
+    queryid_lsb |= query_id.hash[1]; queryid_lsb <<= 32;
+    queryid_lsb |= query_id.hash[0];
+
+    queryid_msb |= query_id.hash[7]; queryid_msb <<= 32;
+    queryid_msb |= query_id.hash[6]; queryid_msb <<= 32;
+    queryid_msb |= query_id.hash[5]; queryid_msb <<= 32;
+    queryid_msb |= query_id.hash[4];
+
+    print("query_id_lsb: ", queryid_lsb, ", ");
+    print("query_id_msb: ", queryid_msb, ", ");
 }
 
+// action
 void dice::callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof) {
-
     // require_auth(oraclize_cbAddress());
-
     if (oraclize_randomDS_proofVerify(queryId, result, proof, _self) != 0) {
         // The proof verification has failed, manage this use case...
     }
@@ -382,4 +397,5 @@ EOSIO_DISPATCH(dice,
                (version)(addgame)(debug)
                (startgame)
                (enter)(schedusers)
-               (moveright)(moveleft)(moveup)(movedown))
+               (moveright)(moveleft)(moveup)(movedown)
+               (getrnd)(callback))

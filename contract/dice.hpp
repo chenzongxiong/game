@@ -11,6 +11,8 @@
  * TODO: adoid overlapping of steps in map
  * TODO: show waiting timestamp
  * TODO: validate route steps
+ * TODO: security checking
+ *    - Delay transfer
  */
 
 class [[eosio::contract]] dice : public eosio::contract {
@@ -25,9 +27,6 @@ public:
 
 private:
     std::string _VERSION = "0.1.2";
-    // TODO: urging
-    int random();
-    void callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof);
 
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr int64_t FEE = 10000; // 1 EOS
@@ -155,12 +154,18 @@ public:
         }
     };
 
-    typedef eosio::multi_index<"users"_n, users, eosio::indexed_by<"gammeuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::by_gameuuid>>> usertable;
-    usertable _waitingpool;
+    // typedef eosio::multi_index<"users"_n, users, eosio::indexed_by<"gammeuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::by_gameuuid>>> usertable;
+    typedef eosio::multi_index<"users1"_n, users> usertable1;
+    typedef eosio::multi_index<"users2"_n, users> usertable2;
+    // eosio::indexed_by<"gammeuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::by_gameuuid>>>
+    usertable1 _waitingpool;
+    usertable2 scheduled_users; // the users in this vector already get a line number, but not toss a dice
 
-    usertable scheduled_users; // the users in this vector already get a line number, but not toss a dice
+    // TODO: urging
+    [[eosio::action]] void getrnd();
+    [[eosio::action]] void callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof);
+
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
-
     [[eosio::action]] void addgame();
     [[eosio::action]] void startgame(uint64_t gameuuid);
 
