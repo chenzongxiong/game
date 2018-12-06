@@ -2,7 +2,6 @@
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
 
-
 #define DEBUG
 /* DOING:
  * DONE: entering game, transfer tokens to our platform
@@ -27,6 +26,7 @@ public:
 
 private:
     std::string _VERSION = "0.1.2";
+
 
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr int64_t FEE = 10000; // 1 EOS
@@ -171,6 +171,7 @@ public:
     // call it from offchain every 100 ms/1 s
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint64_t total); // schedule users
 
+    [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid);
     [[eosio::action]] void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     [[eosio::action]] void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
     [[eosio::action]] void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
@@ -200,14 +201,16 @@ private:
                                              g.pos = pt.to_pos();
                                          });
     }
-    bool is_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
-        for (auto _user : scheduled_users) {
-            if (_user.user == user &&
-                _user.gameuuid == gameuuid) {
-                return true;
+    auto is_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
+
+        auto end = scheduled_users.cend();
+        for (auto _user = scheduled_users.cbegin(); _user != end; _user ++) {
+            if (_user->user == user &&
+                _user->gameuuid == gameuuid) {
+                return _user;
             }
         }
-        return false;
+        return end;
     }
     // 1. check game status, over or continue, close, start,
     // 2. distribute tokens
@@ -247,7 +250,11 @@ private:
     }
     auto prepare_movement(eosio::name user, uint64_t gameuuid) {
         require_auth(get_self());
-        bool valid_user_game = is_user_in_game(user, gameuuid);
+        // bool valid_user_game = is_user_in_game(user, gameuuid);
+        auto _user = is_user_in_game(user, gameuuid);
+
+        bool valid_user_game = (_user != scheduled_users.cend());
+
         eosio_assert(valid_user_game, "user not in game");
         auto _game = get_game_by_uuid(gameuuid);
         eosio_assert(_game->status == GAME_START, "game does not start");
@@ -258,4 +265,6 @@ private:
     void set_game_goals(game &_game) {
 
     }
+
+    uint32_t get_rnd_number(uint32_t bound);
 };

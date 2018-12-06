@@ -1,8 +1,5 @@
 #include <eosiolib/asset.hpp>
 #include "dice.hpp"
-
-// #include "oraclize/eos_api.hpp"
-// #include "pcg-cpp-0.98/include/pcg_random.hpp"
 #include "pcg-c-basic-0.9/pcg_basic.h"
 #include "pcg-c-basic-0.9/pcg_basic.c"
 
@@ -14,39 +11,31 @@ void dice::version() {
 // action
 void dice::debug() {
     require_auth(get_self());
+    eosio::print(">>>>>>>>>>>>>>>>>>>>TIME>>>>>>>>>>>>>>>>>>>>");
+    eosio::print("now: ", now());
+    eosio::print(">>>>>>>>>>>>>>>>>>>>GAME>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_game : _games) {
+        _game.debug();
+    }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>POINT>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_game : _games) {
+        point pt = point(_game.pos);
+        // eosio::print("row: ", pt.row, ", col: ", pt.col, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        pt.debug();
+    }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>WAITING USERS>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_user : _waitingpool) {
+        _user.debug();
+    }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_user : scheduled_users) {
+        _user.debug();
+    }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
 
-    pcg32_random_t rng;
-    // eosio::time_point ts = eosio::time_point();
-    // int64_t elapsed = ts.time_since_epoch().count();
-    pcg32_srandom_r(&rng, now()^(intptr_t)&printf, MAXGOALS);
-    // uint32_t dice_number = (uint32_t)pcg32_random_r(&rng);
-    uint32_t dice_number = (uint32_t)pcg32_boundedrand_r(&rng, 6) + 1;
-    eosio::print("real dice number: ", dice_number, ", ");
-
-    // eosio::print(">>>>>>>>>>>>>>>>>>>>GAME>>>>>>>>>>>>>>>>>>>>");
-    // for (auto &_game : _games) {
-    //     _game.debug();
-    // }
-    // eosio::print(">>>>>>>>>>>>>>>>>>>>POINT>>>>>>>>>>>>>>>>>>>>");
-    // for (auto &_game : _games) {
-    //     point pt = point(_game.pos);
-    //     // eosio::print("row: ", pt.row, ", col: ", pt.col, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-    //     pt.debug();
-    // }
-    // eosio::print(">>>>>>>>>>>>>>>>>>>>WAITING USERS>>>>>>>>>>>>>>>>>>>>");
-    // for (auto &_user : _waitingpool) {
-    //     _user.debug();
-    // }
-    // eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    // for (auto &_user : scheduled_users) {
-    //     _user.debug();
-    // }
-    // // eosio::print(">>>>>>>>>>>>>>>>>>>>LATEST SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    // // for (auto &_user : latest_scheduled_users) {
-    // //     _user.debug();
-    // // }
-    // eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
-
+    for (uint8_t i = 0; i < 128; i ++) {
+        eosio::print(get_rnd_number(6), ", ");
+    }
 }
 // action
 void dice::addgame() {
@@ -190,17 +179,21 @@ void dice::schedusers(uint64_t gameuuid, uint64_t total) {
     }
 }
 // action
+void dice::toss(eosio::name user, uint64_t gameuuid) {
+    // add auth or not ?
+    // require_auth(get_self());
+    uint32_t bound = 6;
+    // bool is_user_in_game(user, gameuuid);
+    uint32_t dice_number = get_rnd_number(bound);
+    // TODO: bind this dice_number to users
+
+}
+// action
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
     // DONE: update steps
-    // auto _game = prepare_movement(user, gameuuid);
-    require_auth(get_self());
-    bool valid_user_game = is_user_in_game(user, gameuuid);
-    eosio_assert(valid_user_game, "user not in game");
-
-    auto _game = get_game_by_uuid(gameuuid);
-    // eosio_assert(_game->status == GAME_START, "game does not start");
+    auto _game = prepare_movement(user, gameuuid);
 
     point pt = point(_game->pos);
     // overflow
@@ -351,6 +344,16 @@ void dice::distribute(const game& _game,
     }
 
     desc_game_shadow_awards(_game, awards);
+}
+
+// uint32_t dice::get_rnd_number(pcg32_random_t& rng, uint32_t bound) {
+uint32_t dice::get_rnd_number(uint32_t bound) {
+    pcg32_random_t rng;
+    auto s = ((intptr_t)&printf);
+    pcg32_srandom_r(&rng, now(), MAXGOALS);
+
+    uint32_t rnd = (uint32_t)pcg32_boundedrand_r(&rng, bound) + 1;
+    return rnd;
 }
 
 
