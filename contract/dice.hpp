@@ -161,9 +161,7 @@ public:
     usertable1 _waitingpool;
     usertable2 scheduled_users; // the users in this vector already get a line number, but not toss a dice
 
-    // TODO: urging
-    [[eosio::action]] void getrnd();
-    [[eosio::action]] void callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof);
+    // TODO: random number generator urging
 
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
     [[eosio::action]] void addgame();

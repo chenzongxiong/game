@@ -1,6 +1,10 @@
 #include <eosiolib/asset.hpp>
 #include "dice.hpp"
-#include "oraclize/eos_api.hpp"
+
+// #include "oraclize/eos_api.hpp"
+// #include "pcg-cpp-0.98/include/pcg_random.hpp"
+#include "pcg-c-basic-0.9/pcg_basic.h"
+#include "pcg-c-basic-0.9/pcg_basic.c"
 
 // action
 void dice::version() {
@@ -9,83 +13,40 @@ void dice::version() {
 
 // action
 void dice::debug() {
+    require_auth(get_self());
+
+    pcg32_random_t rng;
+    // eosio::time_point ts = eosio::time_point();
+    // int64_t elapsed = ts.time_since_epoch().count();
+    pcg32_srandom_r(&rng, now()^(intptr_t)&printf, MAXGOALS);
+    // uint32_t dice_number = (uint32_t)pcg32_random_r(&rng);
+    uint32_t dice_number = (uint32_t)pcg32_boundedrand_r(&rng, 6) + 1;
+    eosio::print("real dice number: ", dice_number, ", ");
+
+    // eosio::print(">>>>>>>>>>>>>>>>>>>>GAME>>>>>>>>>>>>>>>>>>>>");
     // for (auto &_game : _games) {
     //     _game.debug();
     // }
-
-    // point pt = point(0xff0000ff);
+    // eosio::print(">>>>>>>>>>>>>>>>>>>>POINT>>>>>>>>>>>>>>>>>>>>");
     // for (auto &_game : _games) {
-    //     auto it = _games.find(_game.uuid);
-    //     eosio_assert(it != _games.end(), "could not find the game");
-
-    //     _games.modify(it, get_self(), [&](auto &g){
-    //                                       set_game_pos(g, pt);
-    //                                   });
+    //     point pt = point(_game.pos);
+    //     // eosio::print("row: ", pt.row, ", col: ", pt.col, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    //     pt.debug();
     // }
-    require_auth(get_self());
-    eosio::print(">>>>>>>>>>>>>>>>>>>>GAME>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_game : _games) {
-        _game.debug();
-    }
-    eosio::print(">>>>>>>>>>>>>>>>>>>>POINT>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_game : _games) {
-        point pt = point(_game.pos);
-        // eosio::print("row: ", pt.row, ", col: ", pt.col, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        pt.debug();
-    }
-    eosio::print(">>>>>>>>>>>>>>>>>>>>WAITING USERS>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_user : _waitingpool) {
-        _user.debug();
-    }
-    eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_user : scheduled_users) {
-        _user.debug();
-    }
-    // eosio::print(">>>>>>>>>>>>>>>>>>>>LATEST SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    // for (auto &_user : latest_scheduled_users) {
+    // eosio::print(">>>>>>>>>>>>>>>>>>>>WAITING USERS>>>>>>>>>>>>>>>>>>>>");
+    // for (auto &_user : _waitingpool) {
     //     _user.debug();
     // }
-    eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
-    // random();
-    // callback();
-}
-// action
-void dice::getrnd() {
-    print("Sending query to Oraclize...");
-    uint8_t N = 1; // Possible outputs: [0-255]
-    // uint32_t delay = 10;
-    uint32_t delay = 0;
-    capi_checksum256 query_id = oraclize_newRandomDSQuery(delay, N);
+    // eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
+    // for (auto &_user : scheduled_users) {
+    //     _user.debug();
+    // }
+    // // eosio::print(">>>>>>>>>>>>>>>>>>>>LATEST SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
+    // // for (auto &_user : latest_scheduled_users) {
+    // //     _user.debug();
+    // // }
+    // eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
 
-    uint128_t queryid_lsb = 0;
-    uint128_t queryid_msb = 0;
-
-    queryid_lsb |= query_id.hash[3]; queryid_lsb <<= 32;
-    queryid_lsb |= query_id.hash[2]; queryid_lsb <<= 32;
-    queryid_lsb |= query_id.hash[1]; queryid_lsb <<= 32;
-    queryid_lsb |= query_id.hash[0];
-
-    queryid_msb |= query_id.hash[7]; queryid_msb <<= 32;
-    queryid_msb |= query_id.hash[6]; queryid_msb <<= 32;
-    queryid_msb |= query_id.hash[5]; queryid_msb <<= 32;
-    queryid_msb |= query_id.hash[4];
-
-    print("query_id_lsb: ", queryid_lsb, ", ");
-    print("query_id_msb: ", queryid_msb, ", ");
-}
-
-// action
-void dice::callback(capi_checksum256 queryId, std::vector<unsigned char> result, std::vector<unsigned char> proof) {
-    // require_auth(oraclize_cbAddress());
-    if (oraclize_randomDS_proofVerify(queryId, result, proof, _self) != 0) {
-        // The proof verification has failed, manage this use case...
-    }
-    else {
-        uint8_t result_int = 0;
-        std::memcpy(&result_int, &result[0], result.size());
-        print("Number: ");
-        printi(result_int);
-    }
 }
 // action
 void dice::addgame() {
@@ -398,4 +359,4 @@ EOSIO_DISPATCH(dice,
                (startgame)
                (enter)(schedusers)
                (moveright)(moveleft)(moveup)(movedown)
-               (getrnd)(callback))
+    )
