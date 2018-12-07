@@ -1,4 +1,5 @@
 #include <eosiolib/asset.hpp>
+#include <eosiolib/transaction.hpp>
 #include "dice.hpp"
 #include "pcg-c-basic-0.9/pcg_basic.h"
 #include "pcg-c-basic-0.9/pcg_basic.c"
@@ -73,11 +74,20 @@ void dice::transfer(eosio::name from, eosio::name to, int64_t amount) {
     eosio::name permission = "active"_n;
     // std::vector<eosio::permission_level> auths {eosio::permission_level {from, permission}, eosio::permission_level {to, permission}};
     eosio::asset quantity = eosio::asset(amount, eosio::symbol("EOS", 4));
-    eosio::action(
+
+    // https://blog.csdn.net/ITleaks/article/details/83069431
+    // delay transaction: https://blog.csdn.net/ITleaks/article/details/83378319
+    eosio::transaction txn {};
+    txn.actions.emplace_back(
         eosio::permission_level{ from, permission },
         "eosio.token"_n, "transfer"_n,
         std::make_tuple(from, to, quantity, std::string(""))
-        ).send();
+        );
+    txn.delay_sec = 30;
+    uint128_t id = 0x0 | from.value;
+    id <<= 64;
+    id |= from.value;
+    txn.send(id, from, false);
 }
 // action
 void dice::enter(eosio::name user, uint64_t gameuuid) {
@@ -86,8 +96,9 @@ void dice::enter(eosio::name user, uint64_t gameuuid) {
      * DONE: put him/her in waiting room
      */
     // TODO: check waiting for success, make sure we get EOS
-    // TODO: timestamp every users
-    require_auth(get_self());
+    // DONE: timestamp every users
+
+    // require_auth(get_self());
     auto _game = get_game_by_uuid(gameuuid);
     transfer(user, get_self(), FEE);
     // TODO: game close or start?
@@ -111,7 +122,7 @@ void dice::enter(eosio::name user, uint64_t gameuuid) {
                                          u.no = -1;
                                          u.user = user;
                                          u.steps = 0;
-                                         // u.ts = bs timestamp
+                                         u.ts = now();
                                      });
 
 }
@@ -348,12 +359,25 @@ void dice::distribute(const game& _game,
 
 // uint32_t dice::get_rnd_number(pcg32_random_t& rng, uint32_t bound) {
 uint32_t dice::get_rnd_number(uint32_t bound) {
-    pcg32_random_t rng;
-    auto s = ((intptr_t)&printf);
-    pcg32_srandom_r(&rng, now(), MAXGOALS);
+    // pcg32_random_t rng;
+    _rngtbl.emplace(get_self(), [&](auto &r) {
+                                    // r.ts = now();
+                                    r.uuid = _rngtbl.available_primary_key();
+                                    pcg32_srandom_r(&r.rng, now(), MAXGOALS);
+                                });
 
-    uint32_t rnd = (uint32_t)pcg32_boundedrand_r(&rng, bound) + 1;
-    return rnd;
+    auto rng_it = _rngtbl.begin();
+    if (rng_it == _rngtbl.end()) {
+        eosio_assert(false, "no random generator");
+    }
+
+    uint32_t num = 0;
+    // auto s = ((intptr_t)&printf);
+    // pcg32_srandom_r(&rng_it->rng, now(), MAXGOALS);
+
+    // uint32_t num = (uint32_t)pcg32_boundedrand_r(&(rng_it->rng), bound) + 1;
+
+    return num;
 }
 
 

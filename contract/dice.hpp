@@ -1,9 +1,10 @@
 #pragma once
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
+#include "pcg-c-basic-0.9/pcg_basic.h"
 
-#define DEBUG
 /* DOING:
+ * TODO: auto-play
  * DONE: entering game, transfer tokens to our platform
  * DONE: put into a waiting pools, get
  * TODO: call random function
@@ -11,7 +12,9 @@
  * TODO: show waiting timestamp
  * TODO: validate route steps
  * TODO: security checking
- *    - Delay transfer
+ *    TODO: Delay transfer -> rollback
+ *    TODO: fake EOS tokens
+ *    TODO: random number generator ?
  */
 
 class [[eosio::contract]] dice : public eosio::contract {
@@ -20,7 +23,7 @@ public:
     using contract::contract;
     dice( eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds ): eosio::contract(receiver, code, ds),
         _games(receiver, code.value), _waitingpool(receiver, code.value),
-        scheduled_users(receiver, code.value)
+        scheduled_users(receiver, code.value), _rngtbl(receiver, code.value)
     {}
     struct game;
 
@@ -86,11 +89,6 @@ private:
     // TODO: mark it as private
     void transfer(eosio::name from, eosio::name to, int64_t amount);
 
-public:
-
-    [[eosio::action]] void version();
-    [[eosio::action]] void debug();
-
     TABLE game {
 
         uint64_t uuid;
@@ -124,17 +122,14 @@ public:
             eosio::print(" |");
         }
     };
-
-    typedef eosio::multi_index<"game"_n, game> gametable;
-    gametable _games;
-
     TABLE users {
         uint64_t uuid;
         uint64_t gameuuid;
         uint32_t steps;
         uint128_t no;           // avoid overflow
         eosio::name user;
-        eosio::block_timestamp ts;
+        // eosio::block_timestamp ts;
+        time_t ts;
         uint64_t primary_key() const {
             return uuid;
         }
@@ -149,18 +144,33 @@ public:
             eosio::print("no: ", no, ", ");
             eosio::print("user: ", user, ", ");
             eosio::print("steps: ", steps, ", ");
-            // eosio::print("ts: ", ts, ", ");
+            eosio::print("timestamp: ", ts, ", ");
             eosio::print(" |");
         }
     };
+    TABLE rndgenerator {
+        uint64_t uuid;
+        pcg32_random_t rng;
+        uint64_t primary_key() const {
+            return uuid;
+        }
+    };
 
-    // typedef eosio::multi_index<"users"_n, users, eosio::indexed_by<"gammeuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::by_gameuuid>>> usertable;
+public:
+
+    [[eosio::action]] void version();
+    [[eosio::action]] void debug();
+
+    typedef eosio::multi_index<"game"_n, game> gametable;
+    gametable _games;
+
     typedef eosio::multi_index<"users1"_n, users> usertable1;
     typedef eosio::multi_index<"users2"_n, users> usertable2;
-    // eosio::indexed_by<"gammeuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::by_gameuuid>>>
     usertable1 _waitingpool;
     usertable2 scheduled_users; // the users in this vector already get a line number, but not toss a dice
 
+    typedef eosio::multi_index<"rng"_n, rndgenerator> rngtable;
+    rngtable _rngtbl;
     // TODO: random number generator urging
 
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
@@ -224,9 +234,9 @@ private:
             }
         }
 
-        _games.modify(_game, get_self(), [&](auto &g){
-                                          g.status = GAME_OVER;
-                                      });
+        _games.modify(_game, get_self(), [&](auto &g) {
+                                             g.status = GAME_OVER;
+                                         });
     }
     void incr_game_shadow_awards(const game &_game, const int64_t fee) {
         _games.modify(_game, get_self(), [&](auto &g){
@@ -249,8 +259,8 @@ private:
                                          });
     }
     auto prepare_movement(eosio::name user, uint64_t gameuuid) {
+        // check authorization of user ?
         require_auth(get_self());
-        // bool valid_user_game = is_user_in_game(user, gameuuid);
         auto _user = is_user_in_game(user, gameuuid);
 
         bool valid_user_game = (_user != scheduled_users.cend());
@@ -265,6 +275,5 @@ private:
     void set_game_goals(game &_game) {
 
     }
-
     uint32_t get_rnd_number(uint32_t bound);
 };
