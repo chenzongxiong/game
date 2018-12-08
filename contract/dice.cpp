@@ -1,14 +1,27 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/transaction.hpp>
 #include "dice.hpp"
-// #include "pcg-c-basic-0.9/pcg_basic.h"
-// #include "pcg-c-basic-0.9/pcg_basic.c"
 
 // action
 void dice::version() {
     eosio::print(_VERSION.c_str(), ", self: ", get_self());
 }
-
+/********************************************************************************
+ * administrator functions
+ ********************************************************************************/
+// action
+void dice::setfee(int64_t fee) {
+    require_auth(get_self());
+    FEE = fee;
+}
+void dice::setwidth(uint32_t w) {
+    require_auth(get_self());
+    GAMEBOARD_WIDTH = w;
+}
+void dice::setheight(uint32_t h) {
+    require_auth(get_self());
+    GAMEBOARD_HEIGHT = h;
+}
 // action
 void dice::debug() {
     require_auth(get_self());
@@ -21,7 +34,6 @@ void dice::debug() {
     eosio::print(">>>>>>>>>>>>>>>>>>>>POINT>>>>>>>>>>>>>>>>>>>>");
     for (auto &_game : _games) {
         point pt = point(_game.pos);
-        // eosio::print("row: ", pt.row, ", col: ", pt.col, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         pt.debug();
     }
     eosio::print(">>>>>>>>>>>>>>>>>>>>WAITING USERS>>>>>>>>>>>>>>>>>>>>");
@@ -58,20 +70,21 @@ void dice::debug() {
 }
 // action
 void dice::addgame() {
-    // TODO: require authority, only our platform has right to add a new game
-    // TODO: random initialize a game postion
     // TODO: random initialize a set of goals
+    uint32_t board_width = 30;
+    uint32_t board_height = 30;
+
     require_auth(get_self());
-    // uint64_t uuid = _games.available_primary_key();
-    // eosio::print("uuid1: ", uuid, ", ");
-    // uuid = _games.available_primary_key();
-    // eosio::print("uuid2: ", uuid, ", ");
+    eosio_assert(board_width > 0, "width < 0");
+    eosio_assert(board_height > 0, "height < 0");
+    uint32_t pos = get_rnd_game_pos(board_width, board_height);
     _games.emplace(get_self(), [&](auto &g) {
                                    g.uuid = _games.available_primary_key();
-                                   g.pos = 0x00010002;
+                                   g.pos = pos;
                                    g.status = GAME_CLOSE;
                                    g.awards = 0;
                                    g.shadow_awards = 0;
+                                   // TODO: add goals
                                });
 }
 // action
@@ -106,44 +119,6 @@ void dice::transfer(eosio::name from, eosio::name to, int64_t amount) {
     id |= from.value;
     txn.send(id, from, false);
 }
-// action
-void dice::enter(eosio::name user, uint64_t gameuuid) {
-    /**
-     * DONE: tranfer fee
-     * DONE: put him/her in waiting room
-     */
-    // TODO: check waiting for success, make sure we get EOS
-    // DONE: timestamp every users
-
-    // require_auth(get_self());
-    auto _game = get_game_by_uuid(gameuuid);
-    transfer(user, get_self(), FEE);
-    // TODO: game close or start?
-    // eosio_assert(_game->status == GAME_START, "game does not start");
-    // update_game_shadow_awards(*_game);
-
-    incr_game_shadow_awards(*_game, FEE);
-    // auto g_it = _games.cbegin();
-    // while (g_it != _games.cend()) {
-    //     if (g_it->gamename == gamename) {
-    //         break;
-    //     }
-    //     g_it ++;
-    // }
-    // if (g_it == _games.cend()) {
-    //     eosio_assert(false, "invalid gamename");
-    // }
-    _waitingpool.emplace(get_self(), [&](auto &u) {
-                                         u.uuid= _waitingpool.available_primary_key();
-                                         u.gameuuid = _game->uuid;
-                                         u.no = -1;
-                                         u.user = user;
-                                         u.steps = 0;
-                                         u.ts = now();
-                                     });
-
-}
-
 // action
 void dice::schedusers(uint64_t gameuuid, uint64_t total) {
     // DONE: authorization, only platform could run schedulers
@@ -206,22 +181,109 @@ void dice::schedusers(uint64_t gameuuid, uint64_t total) {
         _user.debug();
     }
 }
+
+
+/********************************************************************************
+ * Users functions
+ ********************************************************************************/
+// action
+void dice::enter(eosio::name user, uint64_t gameuuid) {
+    /**
+     * DONE: tranfer fee
+     * DONE: put him/her in waiting room
+     */
+    // TODO: check waiting for success, make sure we get EOS
+    // DONE: timestamp every users
+
+    // require_auth(get_self());
+    auto _game = get_game_by_uuid(gameuuid);
+    transfer(user, get_self(), FEE);
+    // TODO: game close or start?
+    // eosio_assert(_game->status == GAME_START, "game does not start");
+    // update_game_shadow_awards(*_game);
+
+    incr_game_shadow_awards(*_game, FEE);
+    // auto g_it = _games.cbegin();
+    // while (g_it != _games.cend()) {
+    //     if (g_it->gamename == gamename) {
+    //         break;
+    //     }
+    //     g_it ++;
+    // }
+    // if (g_it == _games.cend()) {
+    //     eosio_assert(false, "invalid gamename");
+    // }
+    _waitingpool.emplace(get_self(), [&](auto &u) {
+                                         u.uuid= _waitingpool.available_primary_key();
+                                         u.gameuuid = _game->uuid;
+                                         u.no = -1;
+                                         u.user = user;
+                                         u.steps = 0;
+                                         u.ts = now();
+                                     });
+
+}
 // action
 void dice::toss(eosio::name user, uint64_t gameuuid) {
     // add auth or not ?
-    // require_auth(get_self());
-    uint32_t bound = 6;
-    // bool is_user_in_game(user, gameuuid);
-    // uint32_t dice_number = get_rnd_number(bound);
-    // TODO: bind this dice_number to users
+    require_auth(user);
+    auto _user = is_sched_user_in_game(user, gameuuid);
+    if (_user == _scheduled_users.cend()) {
+        eosio_assert(false, "invalid user");
+    }
+    uint32_t dice_number = get_rnd_dice_number();
+    _scheduled_users.modify(_user, get_self(), [&](auto &u) {
+                                                   u.steps = dice_number;
+                                               });
 
+}
+// action
+void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
+    // right: steps & 0xffff 0000 0000 0000
+    // left : steps & 0x0000 ffff 0000 0000
+    // up   : steps & 0x0000 0000 ffff 0000
+    // down : steps & 0x0000 0000 0000 ffff
+    require_auth(user);
+    auto _user = is_sched_user_in_game(user, gameuuid);
+    bool valid_user_game = (_user != _scheduled_users.cend());
+    eosio_assert(valid_user_game, "user not in game");
+    uint32_t inner_steps = _user->steps;
+    // 2. check steps is smaller than or equal 6
+    uint16_t right = (steps >> 48) & 0xffff;
+    uint16_t left  = (steps >> 32) & 0xffff;
+    uint16_t up    = (steps >> 16) & 0xffff;
+    uint16_t down  = steps         & 0xffff;
+    eosio_assert(inner_steps <= 6 && inner_steps > 0, "inner steps error");
+    eosio_assert(right <= inner_steps, "right steps error");
+    eosio_assert(left  <= inner_steps, "left  steps error");
+    eosio_assert(up    <= inner_steps, "up    steps error");
+    eosio_assert(down  <= inner_steps, "down  steps error");
+    uint32_t _steps = (right + left + up + down);
+    eosio_assert(_steps == inner_steps, "total steps error");
+    // 3. check steps is equal to given steps
+    auto _game = get_game_by_uuid(gameuuid);
+    eosio_assert(_game->status == GAME_START, "game does not start");
+    incr_game_awards(*_game, FEE);
+
+    if (right > 0) {
+        moveright(user, gameuuid, right);
+    }
+    if (left > 0) {
+        moveleft(user, gameuuid, left);
+    }
+    if (up > 0) {
+        moveup(user, gameuuid, up);
+    }
+    if (down > 0) {
+        movedown(user, gameuuid, down);
+    }
 }
 // action
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
     // DONE: update steps
-    auto _game = prepare_movement(user, gameuuid);
+    auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
     // overflow
@@ -250,7 +312,7 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 }
 // action
 void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-    auto _game = prepare_movement(user, gameuuid);
+    auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
     // overflow
@@ -279,7 +341,7 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 }
 // action
 void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-    auto _game = prepare_movement(user, gameuuid);
+    auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
     // overflow
@@ -308,7 +370,7 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 }
 // action
 void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-    auto _game = prepare_movement(user, gameuuid);
+    auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
     pt.debug();
@@ -374,9 +436,12 @@ void dice::distribute(const game& _game,
     desc_game_shadow_awards(_game, awards);
 }
 
+
 EOSIO_DISPATCH(dice,
                (version)(addgame)(debug)
                (startgame)
                (enter)(schedusers)
-               (moveright)(moveleft)(moveup)(movedown)
+               (move)
+               // (moveright)(moveleft)(moveup)(movedown)
+               (setfee)(setwidth)(setheight)
     )

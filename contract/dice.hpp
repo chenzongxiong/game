@@ -1,14 +1,19 @@
 #pragma once
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
-// #include "pcg-c-basic-0.9/pcg_basic.h"
 
 /* DOING:
  * TODO: auto-play
  * TODO: call random function
+ *    - DONE: add PCG random function
+ *    - DONE: toss a dice
+ *    - TODO: random initalize a game
+ *       - TODO: random initalize all goals
+ *       - DONE: random initalize inital postion in a game
  * TODO: advoid overlapping of steps in map
+ *    - features in next version
  * TODO: show waiting timestamp
- * TODO: validate route steps
+ * TODO: validate route steps, total steps should be equal to dice number
  * TODO: security checking
  *    TODO: Delay transfer -> rollback
  *    TODO: fake EOS tokens
@@ -30,7 +35,10 @@ private:
     std::string _VERSION = "0.1.2";
 
     static constexpr uint8_t MAXGOALS = 10;
-    static constexpr int64_t FEE = 10000; // 1 EOS
+    // static constexpr int64_t FEE = 10000; // 1 EOS
+    int64_t FEE = 10000; // default 1 EOS
+    uint32_t GAMEBOARD_WIDTH = 30;
+    uint32_t GAMEBOARD_HEIGHT = 30;
     static constexpr float WINNER_PERCENT = 0.7;
     static constexpr float PARTICIPANTS_PERCENT = 0.05;
 
@@ -48,7 +56,10 @@ private:
     struct point {
         uint32_t row;
         uint32_t col;
-
+        point(uint32_t _row, uint32_t _col) {
+            row = _row;
+            col = _col;
+        }
         point(uint32_t pos) {
             row = (pos & 0xffff0000) >> 16;
             col = (pos & 0x0000ffff);
@@ -167,10 +178,6 @@ public:
     usertable1 _waitingpool;
     usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
 
-    // typedef eosio::multi_index<"rng"_n, rndgenerator> rngtable;
-    // rngtable _rngtbl;
-    // TODO: random number generator urging
-
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
     [[eosio::action]] void addgame();
     [[eosio::action]] void startgame(uint64_t gameuuid);
@@ -180,11 +187,15 @@ public:
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint64_t total); // schedule users
 
     [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid);
-    [[eosio::action]] void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
-    [[eosio::action]] void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
-    [[eosio::action]] void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
-    [[eosio::action]] void movedown(eosio::name user, uint64_t gameuuid, uint32_t steps);
-
+    [[eosio::action]] void move(eosio::name user, uint64_t gameuuid, uint64_t steps);
+    // [[eosio::action]]
+    void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
+    // [[eosio::action]]
+    void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
+    // [[eosio::action]]
+    void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
+    // [[eosio::action]]
+    void movedown(eosio::name user, uint64_t gameuuid, uint32_t steps);
 
     [[eosio::action]] void getusers() const; // extract latest scheduled users information, users to toss dices
     [[eosio::action]] void getawards();    // get current awards
@@ -209,7 +220,7 @@ private:
                                              g.pos = pt.to_pos();
                                          });
     }
-    auto is_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
+    auto is_sched_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
 
         auto end = _scheduled_users.cend();
         for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
@@ -256,14 +267,15 @@ private:
                                              g.awards -= fee;
                                          });
     }
-    auto prepare_movement(eosio::name user, uint64_t gameuuid) {
-        // check authorization of user ?
-        require_auth(get_self());
-        auto _user = is_user_in_game(user, gameuuid);
-
+    auto prepare_movement(eosio::name user, uint64_t gameuuid, uint32_t steps) {
+        require_auth(user);
+        // 1. check user in the game
+        auto _user = is_sched_user_in_game(user, gameuuid);
         bool valid_user_game = (_user != _scheduled_users.cend());
-
         eosio_assert(valid_user_game, "user not in game");
+        // 2. check steps is smaller than or equal 6
+        eosio_assert(steps > 0 &&steps <= 6, "invalid steps: > 6");
+        // 3. check steps is equal to given steps
         auto _game = get_game_by_uuid(gameuuid);
         eosio_assert(_game->status == GAME_START, "game does not start");
         incr_game_awards(*_game, FEE);
@@ -281,7 +293,7 @@ private:
         uint64_t state = 0x853c49e6748fea9bULL;           // RNG state.  All values are possible.
         uint64_t inc = 0xda3e39cb94b95bdbULL;             // Controls which RNG sequence (stream) is
                                                           // selected. Must *always* be odd.
-        // vector<uint64_t> incs;  // use to change the RNG sequence
+        // std::vector<uint64_t> incs;  // use to change the RNG sequence
 
         uint64_t primary_key() const {
             return uuid;
@@ -296,7 +308,6 @@ private:
     };
     typedef eosio::multi_index<"pcgrnd"_n, pcg_state_setseq_64> pcg32_random_t;
     pcg32_random_t _rngtbl;
-
 
     void pcg32_srandom_r(uint64_t initstate, uint64_t initseq) {
         // add a random engine
@@ -332,6 +343,8 @@ private:
         uint32_t r = (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
         _rngtbl.modify(_rng_it, get_self(), [&](auto &r) {
                                                 r.state = oldstate * 6364136223846793005ULL + r.inc;
+                                                // variant, idea is to change `inc` according to previous random list
+                                                // but it's meaningful ?
                                             });
         return r;
     }
@@ -345,5 +358,21 @@ private:
                 return r % bound;
             }
         }
+    }
+    static constexpr uint64_t initseq = 0x0;
+    // NOTE: if we fix `initstate` and `initseq`, hacker can generate the whole random sequence if he steals `initstate` and `initseq`
+    // However, if we don't fix `initstate` and use current timestamp as `initstate`. Again, there is a problem a hacker can also generate
+    // a sequence of random values in advance.
+    // Here we didn't discuss a hacker can toss whatever a dice number he wants.
+    uint32_t get_rnd_dice_number() {
+        pcg32_srandom_r(now(), initseq);
+        return pcg32_boundedrand_r(6);
+    }
+    uint32_t get_rnd_game_pos(uint32_t board_width, uint32_t board_height) {
+        pcg32_srandom_r(now(), initseq);
+        uint32_t row = pcg32_boundedrand_r(board_height);
+        uint32_t col = pcg32_boundedrand_r(board_width);
+        point pt = point(row, col);
+        return pt.to_pos();
     }
 };
