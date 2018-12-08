@@ -1,14 +1,12 @@
 #pragma once
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
-#include "pcg-c-basic-0.9/pcg_basic.h"
+// #include "pcg-c-basic-0.9/pcg_basic.h"
 
 /* DOING:
  * TODO: auto-play
- * DONE: entering game, transfer tokens to our platform
- * DONE: put into a waiting pools, get
  * TODO: call random function
- * TODO: adoid overlapping of steps in map
+ * TODO: advoid overlapping of steps in map
  * TODO: show waiting timestamp
  * TODO: validate route steps
  * TODO: security checking
@@ -23,13 +21,13 @@ public:
     using contract::contract;
     dice( eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds ): eosio::contract(receiver, code, ds),
         _games(receiver, code.value), _waitingpool(receiver, code.value),
-        scheduled_users(receiver, code.value), _rngtbl(receiver, code.value)
+        _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value)
     {}
+private:
     struct game;
 
 private:
     std::string _VERSION = "0.1.2";
-
 
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr int64_t FEE = 10000; // 1 EOS
@@ -148,13 +146,13 @@ private:
             eosio::print(" |");
         }
     };
-    TABLE rndgenerator {
-        uint64_t uuid;
-        pcg32_random_t rng;
-        uint64_t primary_key() const {
-            return uuid;
-        }
-    };
+    // TABLE rndgenerator {
+    //     uint64_t uuid;
+    //     pcg32_random_t rng;
+    //     uint64_t primary_key() const {
+    //         return uuid;
+    //     }
+    // };
 
 public:
 
@@ -167,10 +165,10 @@ public:
     typedef eosio::multi_index<"users1"_n, users> usertable1;
     typedef eosio::multi_index<"users2"_n, users> usertable2;
     usertable1 _waitingpool;
-    usertable2 scheduled_users; // the users in this vector already get a line number, but not toss a dice
+    usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
 
-    typedef eosio::multi_index<"rng"_n, rndgenerator> rngtable;
-    rngtable _rngtbl;
+    // typedef eosio::multi_index<"rng"_n, rndgenerator> rngtable;
+    // rngtable _rngtbl;
     // TODO: random number generator urging
 
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
@@ -213,8 +211,8 @@ private:
     }
     auto is_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
 
-        auto end = scheduled_users.cend();
-        for (auto _user = scheduled_users.cbegin(); _user != end; _user ++) {
+        auto end = _scheduled_users.cend();
+        for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
             if (_user->user == user &&
                 _user->gameuuid == gameuuid) {
                 return _user;
@@ -263,7 +261,7 @@ private:
         require_auth(get_self());
         auto _user = is_user_in_game(user, gameuuid);
 
-        bool valid_user_game = (_user != scheduled_users.cend());
+        bool valid_user_game = (_user != _scheduled_users.cend());
 
         eosio_assert(valid_user_game, "user not in game");
         auto _game = get_game_by_uuid(gameuuid);
@@ -275,5 +273,77 @@ private:
     void set_game_goals(game &_game) {
 
     }
-    uint32_t get_rnd_number(uint32_t bound);
+
+private:
+    // random number generator
+    struct pcg_state_setseq_64 {
+        uint64_t uuid;
+        uint64_t state = 0x853c49e6748fea9bULL;           // RNG state.  All values are possible.
+        uint64_t inc = 0xda3e39cb94b95bdbULL;             // Controls which RNG sequence (stream) is
+                                                          // selected. Must *always* be odd.
+        // vector<uint64_t> incs;  // use to change the RNG sequence
+
+        uint64_t primary_key() const {
+            return uuid;
+        }
+        void debug() const {
+            eosio::print(">| ");
+            eosio::print("uuid: ", uuid, ", ");
+            eosio::print("state: ", state, ", ");
+            eosio::print("inc: ", inc, ", ");
+            eosio::print(" |");
+        }
+    };
+    typedef eosio::multi_index<"pcgrnd"_n, pcg_state_setseq_64> pcg32_random_t;
+    pcg32_random_t _rngtbl;
+
+
+    void pcg32_srandom_r(uint64_t initstate, uint64_t initseq) {
+        // add a random engine
+        auto _rng_it = _rngtbl.begin();
+        if (_rng_it == _rngtbl.end()) {
+            _rng_it = _rngtbl.emplace(get_self(), [&](auto &r) {
+                                                      r.state = 0U;
+                                                      r.inc = (initseq << 1u) | 1u;
+                                                  });
+        } else {
+            _rngtbl.modify(_rng_it, get_self(), [&](auto &r) {
+                                                    r.state = 0U;
+                                                    r.inc = (initseq << 1u) | 1u;
+                                                });
+        }
+        // call pcg32_random_r
+        uint64_t oldstate = _rng_it->state;
+        _rngtbl.modify(_rng_it, get_self(), [&](auto &r) {
+                                                r.state = r.state * 6364136223846793005ULL + r.inc;
+                                                r.state += initstate;
+                                                r.state = r.state * 6364136223846793005ULL + r.inc;
+                                            });
+    }
+
+    uint32_t pcg32_random_r() {
+        auto _rng_it = _rngtbl.begin();
+        if (_rng_it == _rngtbl.end()) {
+            eosio_assert(false, "no random generator engine");
+        }
+        uint64_t oldstate = _rng_it->state;
+        uint32_t xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+        uint32_t rot = oldstate >> 59u;
+        uint32_t r = (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+        _rngtbl.modify(_rng_it, get_self(), [&](auto &r) {
+                                                r.state = oldstate * 6364136223846793005ULL + r.inc;
+                                            });
+        return r;
+    }
+    uint32_t pcg32_boundedrand_r(uint32_t bound) {
+        uint32_t threshold = -bound % bound;
+        uint64_t loops = 0;
+        for (;;) {
+            uint32_t r = pcg32_random_r();
+            loops ++;
+            if (r >= threshold) {
+                return r % bound;
+            }
+        }
+    }
 };

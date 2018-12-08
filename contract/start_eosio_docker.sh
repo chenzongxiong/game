@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 
 # change to script's directory
-# cd "$(dirname "$0")/eosio_docker"
-if [ -e "data/initialized" ]
-then
-  script="./scripts/continue_blockchain.sh"
-else
-  script="./scripts/init_blockchain.sh"
-fi
+rm -rf data && mkdir -p data
+script="./scripts/init_blockchain.sh"
 
 echo "=== run docker container from the eosio/eos-dev image ==="
 docker run --rm --name eos -d \

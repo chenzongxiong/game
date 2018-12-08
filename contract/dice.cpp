@@ -1,8 +1,8 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/transaction.hpp>
 #include "dice.hpp"
-#include "pcg-c-basic-0.9/pcg_basic.h"
-#include "pcg-c-basic-0.9/pcg_basic.c"
+// #include "pcg-c-basic-0.9/pcg_basic.h"
+// #include "pcg-c-basic-0.9/pcg_basic.c"
 
 // action
 void dice::version() {
@@ -29,13 +29,31 @@ void dice::debug() {
         _user.debug();
     }
     eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_user : scheduled_users) {
+    for (auto &_user : _scheduled_users) {
         _user.debug();
     }
     eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
+    // pcg32_srandom_r(now(), 1);
+    pcg32_srandom_r(42u, 54u);
+    // for (uint8_t i = 0; i < 128; i ++) {
+    //     // eosio::print(get_rnd_number(6), ", ");
+    //     eosio::print(pcg32_random_r(), ", ");
+    // }
 
-    for (uint8_t i = 0; i < 128; i ++) {
-        eosio::print(get_rnd_number(6), ", ");
+    // for (uint8_t i = 0; i < 128; i ++) {
+    //     eosio::print(pcg32_boundedrand_r(6), ", ");
+    // }
+    uint32_t rounds = 5;
+    for (uint32_t round = 1; round <= rounds; ++ round) {
+        eosio::print("Round ", round, ", ");
+        for (uint32_t i = 0; i < 33; i ++) {
+            eosio::print(pcg32_boundedrand_r(6) + 1, ", ");
+        }
+        eosio::print("====================");
+    }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>rng engine>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_rng : _rngtbl) {
+        _rng.debug();
     }
 }
 // action
@@ -52,7 +70,6 @@ void dice::addgame() {
                                    g.uuid = _games.available_primary_key();
                                    g.pos = 0x00010002;
                                    g.status = GAME_CLOSE;
-                                   // g.status = GAME_START;
                                    g.awards = 0;
                                    g.shadow_awards = 0;
                                });
@@ -161,9 +178,9 @@ void dice::schedusers(uint64_t gameuuid, uint64_t total) {
 
         if (_user.gameuuid == gameuuid) {
 
-            scheduled_users.emplace(get_self(), [&](auto &u) {
+            _scheduled_users.emplace(get_self(), [&](auto &u) {
                                                     u.uuid = _user.uuid; // make user every user only scheduled once
-                                                    // u.uuid = scheduled_users.available_primary_key(),
+                                                    // u.uuid = _scheduled_users.available_primary_key(),
                                                     // u.gameuuid = _user->gameuuid;
                                                     // u.steps = _user->steps;
                                                     // u.no = _user->no;
@@ -185,7 +202,7 @@ void dice::schedusers(uint64_t gameuuid, uint64_t total) {
 
 
     eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_user : scheduled_users) {
+    for (auto &_user : _scheduled_users) {
         _user.debug();
     }
 }
@@ -195,7 +212,7 @@ void dice::toss(eosio::name user, uint64_t gameuuid) {
     // require_auth(get_self());
     uint32_t bound = 6;
     // bool is_user_in_game(user, gameuuid);
-    uint32_t dice_number = get_rnd_number(bound);
+    // uint32_t dice_number = get_rnd_number(bound);
     // TODO: bind this dice_number to users
 
 }
@@ -356,30 +373,6 @@ void dice::distribute(const game& _game,
 
     desc_game_shadow_awards(_game, awards);
 }
-
-// uint32_t dice::get_rnd_number(pcg32_random_t& rng, uint32_t bound) {
-uint32_t dice::get_rnd_number(uint32_t bound) {
-    // pcg32_random_t rng;
-    _rngtbl.emplace(get_self(), [&](auto &r) {
-                                    // r.ts = now();
-                                    r.uuid = _rngtbl.available_primary_key();
-                                    pcg32_srandom_r(&r.rng, now(), MAXGOALS);
-                                });
-
-    auto rng_it = _rngtbl.begin();
-    if (rng_it == _rngtbl.end()) {
-        eosio_assert(false, "no random generator");
-    }
-
-    uint32_t num = 0;
-    // auto s = ((intptr_t)&printf);
-    // pcg32_srandom_r(&rng_it->rng, now(), MAXGOALS);
-
-    // uint32_t num = (uint32_t)pcg32_boundedrand_r(&(rng_it->rng), bound) + 1;
-
-    return num;
-}
-
 
 EOSIO_DISPATCH(dice,
                (version)(addgame)(debug)
