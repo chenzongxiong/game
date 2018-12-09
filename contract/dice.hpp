@@ -43,15 +43,9 @@ private:
     static constexpr float WINNER_PERCENT = 0.7;
     static constexpr float PARTICIPANTS_PERCENT = 0.05;
 
-    // static constexpr uint8_t RIGHT = 0;
-    // static constexpr uint8_t LEFT = 1;
-    // static constexpr uint8_t UP = 2;
-    // static constexpr uint8_t DOWN = 3;
-
     static constexpr uint32_t GAME_CLOSE = 1;
     static constexpr uint32_t GAME_START = 2;
-    // static constexpr uint32_t GAME_CONTINUE = 4;
-    static constexpr uint32_t GAME_OVER = 8;
+    static constexpr uint32_t GAME_OVER = 4;
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
     struct point {
@@ -115,7 +109,6 @@ private:
         uint32_t status;
         int64_t awards;         // the number of tokens we will distribute
         int64_t shadow_awards;  // the number of tokens we collect in this game
-        // std::string gamename;
         std::vector<uint32_t> goals;
         static const uint32_t board_width = 23;
         static const uint32_t board_height = board_width ;
@@ -123,21 +116,15 @@ private:
         uint64_t primary_key() const {
             return uuid;
         }
-        // std::string get_gamename() const {
-        //     return gamename;
-        // }
         void debug() const {
             eosio::print(">| ");
             eosio::print("uuid:", uuid, ", ");
-            // eosio::print("gamename:", gamename.c_str(), ", ");
             eosio::print("board_width:", board_width, ", ");
             eosio::print("board_height:", board_height, ", ");
             eosio::print("pos:", pos, ", ");
             eosio::print("status: ", status, ", ");
             point pt = point(pos);
-            // t.debug();
-            eosio::print("row: ", pt.row, ", ");
-            eosio::print("col: : ", pt.col, ", ");
+            eosio::print("pos: (", pt.row, ", ", pt.col, ", ");
             for (uint32_t i = 0; i < goals.size(); i ++) {
                 point pt = point(goals[i]);
                 eosio::print("goal ", i, ": ", "(", pt.row, ", ", pt.col, "), ");
@@ -191,19 +178,10 @@ public:
 
     [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
     // call it from offchain every 100 ms/1 s
-    [[eosio::action]] void schedusers(uint64_t gameuuid, uint64_t total); // schedule users
+    [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
 
     [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid);
     [[eosio::action]] void move(eosio::name user, uint64_t gameuuid, uint64_t steps);
-    // [[eosio::action]]
-    void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
-    // [[eosio::action]]
-    void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
-    // [[eosio::action]]
-    void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
-    // [[eosio::action]]
-    void movedown(eosio::name user, uint64_t gameuuid, uint32_t steps);
-
     [[eosio::action]] void getusers() const; // extract latest scheduled users information, users to toss dices
     [[eosio::action]] void getawards();    // get current awards
     [[eosio::action]] void getshaawards(); // get shadow awards
@@ -214,6 +192,11 @@ public:
     [[eosio::action]] void setheight(uint32_t h);
 
 private:
+    void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
+    void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
+    void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);
+    void movedown(eosio::name user, uint64_t gameuuid, uint32_t steps);
+
     auto get_game_by_uuid(uint64_t uuid) {
         auto _game = _games.find(uuid);
         auto end = _games.cend();
@@ -362,6 +345,7 @@ private:
             }
         }
     }
+
     static constexpr uint64_t initseq = 0x0;
     // NOTE: if we fix `initstate` and `initseq`, hacker can generate the whole random sequence if he steals `initstate` and `initseq`
     // However, if we don't fix `initstate` and use current timestamp as `initstate`. Again, there is a problem a hacker can also generate
