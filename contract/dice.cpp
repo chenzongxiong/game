@@ -47,37 +47,41 @@ void dice::debug() {
     eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
     // pcg32_srandom_r(now(), 1);
     pcg32_srandom_r(42u, 54u);
-    // for (uint8_t i = 0; i < 128; i ++) {
-    //     // eosio::print(get_rnd_number(6), ", ");
-    //     eosio::print(pcg32_random_r(), ", ");
+    // uint32_t rounds = 5;
+    // for (uint32_t round = 1; round <= rounds; ++ round) {
+    //     eosio::print("Round ", round, ", ");
+    //     for (uint32_t i = 0; i < 33; i ++) {
+    //         eosio::print(pcg32_boundedrand_r(6) + 1, ", ");
+    //     }
+    //     eosio::print("====================");
     // }
-
-    // for (uint8_t i = 0; i < 128; i ++) {
-    //     eosio::print(pcg32_boundedrand_r(6), ", ");
-    // }
-    uint32_t rounds = 5;
-    for (uint32_t round = 1; round <= rounds; ++ round) {
-        eosio::print("Round ", round, ", ");
-        for (uint32_t i = 0; i < 33; i ++) {
-            eosio::print(pcg32_boundedrand_r(6) + 1, ", ");
-        }
-        eosio::print("====================");
-    }
     eosio::print(">>>>>>>>>>>>>>>>>>>>rng engine>>>>>>>>>>>>>>>>>>>>");
     for (auto &_rng : _rngtbl) {
         _rng.debug();
     }
 }
 // action
+// void dice::addgame(uint32_t board_width, uint32_t board_height) {
 void dice::addgame() {
     // TODO: random initialize a set of goals
-    uint32_t board_width = 30;
-    uint32_t board_height = 30;
+    uint32_t board_width = GAMEBOARD_WIDTH;
+    uint32_t board_height = GAMEBOARD_HEIGHT;
 
     require_auth(get_self());
-    eosio_assert(board_width > 0, "width < 0");
-    eosio_assert(board_height > 0, "height < 0");
-    uint32_t pos = get_rnd_game_pos(board_width, board_height);
+    eosio_assert(MAXSIZE > board_width, "width > MAXSIZE");
+    eosio_assert(MAXSIZE > board_height, "height > MAXSIZE");
+    // uint32_t pos = get_rnd_game_pos(board_width, board_height);
+    pcg32_srandom_r(now(), initseq);
+    uint32_t idx = pcg32_boundedrand_r(centroids.size());
+    point pt = centroids[idx];
+    uint32_t pos = pt.to_pos();
+    std::vector<uint32_t> goals;
+    for (uint32_t i = 0; i < centroids.size(); i ++) {
+        if (i == idx) {
+            continue;
+        }
+        goals.push_back(centroids[i].to_pos());
+    }
     _games.emplace(get_self(), [&](auto &g) {
                                    g.uuid = _games.available_primary_key();
                                    g.pos = pos;
@@ -85,6 +89,9 @@ void dice::addgame() {
                                    g.awards = 0;
                                    g.shadow_awards = 0;
                                    // TODO: add goals
+                                   for (auto _gl : goals) {
+                                       g.goals.push_back(_gl);
+                                   }
                                });
 }
 // action

@@ -8,7 +8,7 @@
  *    - DONE: add PCG random function
  *    - DONE: toss a dice
  *    - TODO: random initalize a game
- *       - TODO: random initalize all goals
+ *       - DONE: random initalize all goals
  *       - DONE: random initalize inital postion in a game
  * TODO: advoid overlapping of steps in map
  *    - features in next version
@@ -35,10 +35,11 @@ private:
     std::string _VERSION = "0.1.2";
 
     static constexpr uint8_t MAXGOALS = 10;
+    static constexpr uint32_t MAXSIZE = 50;
     // static constexpr int64_t FEE = 10000; // 1 EOS
     int64_t FEE = 10000; // default 1 EOS
-    uint32_t GAMEBOARD_WIDTH = 30;
-    uint32_t GAMEBOARD_HEIGHT = 30;
+    uint32_t GAMEBOARD_WIDTH = 23;
+    uint32_t GAMEBOARD_HEIGHT = 23;
     static constexpr float WINNER_PERCENT = 0.7;
     static constexpr float PARTICIPANTS_PERCENT = 0.05;
 
@@ -56,6 +57,7 @@ private:
     struct point {
         uint32_t row;
         uint32_t col;
+
         point(uint32_t _row, uint32_t _col) {
             row = _row;
             col = _col;
@@ -75,9 +77,18 @@ private:
         }
     };
 
-    // static void set_game_pos(game &_game, point &pt) {
-    //     _game.pos = pt.to_pos();
-    // }
+    std::vector<point> centroids = {point(0, 0),
+                                    point(9, 0),
+                                    point(21, 0),
+                                    point(13, 7),
+                                    point(0, 9),
+                                    point(21, 10),
+                                    point(7, 13),
+                                    point(15, 15),
+                                    point(0, 21),
+                                    point(10, 21),
+                                    point(21, 21)};
+
     bool is_valid_steps (uint16_t steps) {
         if (steps >= 1 && steps <= 6 ) {
             return true;
@@ -95,7 +106,6 @@ private:
         return true;
     }
 
-    // TODO: mark it as private
     void transfer(eosio::name from, eosio::name to, int64_t amount);
 
     TABLE game {
@@ -107,7 +117,7 @@ private:
         int64_t shadow_awards;  // the number of tokens we collect in this game
         // std::string gamename;
         std::vector<uint32_t> goals;
-        static const uint32_t board_width = 30;
+        static const uint32_t board_width = 23;
         static const uint32_t board_height = board_width ;
 
         uint64_t primary_key() const {
@@ -128,6 +138,10 @@ private:
             // t.debug();
             eosio::print("row: ", pt.row, ", ");
             eosio::print("col: : ", pt.col, ", ");
+            for (uint32_t i = 0; i < goals.size(); i ++) {
+                point pt = point(goals[i]);
+                eosio::print("goal ", i, ": ", "(", pt.row, ", ", pt.col, "), ");
+            }
             eosio::print(" |");
         }
     };
@@ -157,13 +171,6 @@ private:
             eosio::print(" |");
         }
     };
-    // TABLE rndgenerator {
-    //     uint64_t uuid;
-    //     pcg32_random_t rng;
-    //     uint64_t primary_key() const {
-    //         return uuid;
-    //     }
-    // };
 
 public:
 
@@ -281,10 +288,6 @@ private:
         incr_game_awards(*_game, FEE);
         return _game;
     }
-    // TODO: urging
-    void set_game_goals(game &_game) {
-
-    }
 
 private:
     // random number generator
@@ -375,4 +378,16 @@ private:
         point pt = point(row, col);
         return pt.to_pos();
     }
+    // TODO:
+    void set_game_goals(game &_game) {
+        uint32_t pos = _game.pos;
+        point pt = point(pos);
+
+    }
+    // void init_game(game &_game) {
+    //     pcg32_srandom_r(now(), initseq);
+    //     point pt = pcg32_boundedrand_r(centroids.size());
+    //     return pt.to_pos()
+
+    // }
 };
