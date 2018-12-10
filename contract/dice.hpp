@@ -18,7 +18,10 @@
  *    TODO: Delay transfer -> rollback
  *    TODO: fake EOS tokens
  *    TODO: random number generator ?
+ * https://www.bcskill.com/index.php/archives/516.html
  */
+
+#define DEBUG 1
 
 class [[eosio::contract]] dice : public eosio::contract {
 
@@ -124,7 +127,7 @@ private:
             eosio::print("pos:", pos, ", ");
             eosio::print("status: ", status, ", ");
             point pt = point(pos);
-            eosio::print("pos: (", pt.row, ", ", pt.col, ", ");
+            eosio::print("pos: (", pt.row, ", ", pt.col, "), ");
             for (uint32_t i = 0; i < goals.size(); i ++) {
                 point pt = point(goals[i]);
                 eosio::print("goal ", i, ": ", "(", pt.row, ", ", pt.col, "), ");
@@ -346,14 +349,14 @@ private:
         }
     }
 
-    static constexpr uint64_t initseq = 0x0;
+    static constexpr uint64_t initseq = 0x42;
     // NOTE: if we fix `initstate` and `initseq`, hacker can generate the whole random sequence if he steals `initstate` and `initseq`
     // However, if we don't fix `initstate` and use current timestamp as `initstate`. Again, there is a problem a hacker can also generate
     // a sequence of random values in advance.
     // Here we didn't discuss a hacker can toss whatever a dice number he wants.
     uint32_t get_rnd_dice_number() {
         pcg32_srandom_r(now(), initseq);
-        return pcg32_boundedrand_r(6);
+        return pcg32_boundedrand_r(6) + 1;
     }
     uint32_t get_rnd_game_pos(uint32_t board_width, uint32_t board_height) {
         pcg32_srandom_r(now(), initseq);
