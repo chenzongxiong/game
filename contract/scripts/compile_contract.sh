@@ -13,9 +13,12 @@ mkdir -p ./compiled_contracts/dice
 
 COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
 cd $COMPILEDCONTRACTSPATH
+eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
 
-
-eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen
+cd $CONTRACTSPATH
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/empty"
+cd $COMPILEDCONTRACTSPATH
+eosio-cpp -o empty.wasm $CONTRACTSPATH/empty.cpp --abigen
 # # compile smart contract to wast and abi files
 # (
 #   eosiocpp -o "$COMPILEDCONTRACTSPATH/$1/$1.wast" "$CONTRACTSPATH/$1/$1.cpp" &&

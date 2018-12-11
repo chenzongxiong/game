@@ -1,6 +1,15 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/transaction.hpp>
+#include "./eosio.token/include/eosio.token/eosio.token.hpp"
 #include "dice.hpp"
+
+
+struct eosio_token_transfer {
+    eosio::name from;
+    eosio::name to;
+    eosio::asset quantity;
+    std::string memo; // when comment out, it works fine
+};
 
 // action
 void dice::version() {
@@ -16,17 +25,26 @@ void dice::setfee(int64_t fee) {
 }
 void dice::setwidth(uint32_t w) {
     require_auth(get_self());
+    eosio_assert(w >= 6, "error: w < 6");
     GAMEBOARD_WIDTH = w;
 }
 void dice::setheight(uint32_t h) {
     require_auth(get_self());
+    eosio_assert(h >= 6, "error: h < 6");
     GAMEBOARD_HEIGHT = h;
 }
 // action
 void dice::debug() {
     require_auth(get_self());
-    eosio::print(">>>>>>>>>>>>>>>>>>>>TIME>>>>>>>>>>>>>>>>>>>>");
-    eosio::print("now: ", now());
+    eosio::print(">>>>>>>>>>>>>>>>>>>>SEED>>>>>>>>>>>>>>>>>>>>");
+    eosio::print("now: ", now(), ", ");
+    // auto info = get_info();
+    uint32_t block_num = tapos_block_num();
+    uint32_t block_prefix = tapos_block_prefix();
+
+    eosio::print("block number: ", block_num, ", ");
+    eosio::print("block prefix: ", block_prefix, ", ");
+
     eosio::print(">>>>>>>>>>>>>>>>>>>>GAME>>>>>>>>>>>>>>>>>>>>");
     for (auto &_game : _games) {
         _game.debug();
@@ -63,10 +81,11 @@ void dice::debug() {
 // action
 // void dice::addgame(uint32_t board_width, uint32_t board_height) {
 void dice::addgame() {
+    require_auth(get_self());
+
     uint32_t board_width = GAMEBOARD_WIDTH;
     uint32_t board_height = GAMEBOARD_HEIGHT;
 
-    require_auth(get_self());
     eosio_assert(MAXSIZE > board_width, "width > MAXSIZE");
     eosio_assert(MAXSIZE > board_height, "height > MAXSIZE");
     // uint32_t pos = get_rnd_game_pos(board_width, board_height);
@@ -180,21 +199,36 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
  * Users functions
  ********************************************************************************/
 // action
-void dice::enter(eosio::name user, uint64_t gameuuid) {
+// void dice::enter(eosio::name user, uint64_t _gameuuid) {
+// void dice::enter(eosio::name user, uint64_t amount) {
+void dice::enter(eosio::name user) {
     /**
      * NOTE: a user can enter game multiple times
      * 1. tranfer fee
      * 2. put him/her in waiting room
      * 3. increase shadow awards pool
      */
-    // TODO: check waiting for success, make sure we get EOS
+    eosio_assert(user == "eosio.token"_n, "faks tokens");
 
-    require_auth(user);
+    auto data = eosio::unpack_action_data<eosio_token_transfer>();
+    if (data.to != get_self()) {
+        return;
+    }
+    eosio_assert(data.quantity.is_valid(), "invalid quantity");
+    eosio_assert(data.quantity.amount > 0, "must transfer positive quantity");
+    eosio_assert(data.quantity.symbol == eosio::symbol("EOS", 4), "symbol precision mismatch");
+    eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
+
+    if (data.quantity.amount < FEE) {
+        // eosio_assert( quantity.amount == FEE, "must transfer positive quantity" );
+        return;
+    }
+
+    uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
     auto _game = get_game_by_uuid(gameuuid);
     // check game
     eosio_assert(_game != _games.cend(), "not found game.");
     eosio_assert(_game->status != GAME_OVER, "game is over");
-    transfer(user, get_self(), FEE);
 
     incr_game_shadow_awards(*_game, FEE);
     _waitingpool.emplace(get_self(), [&](auto &u) {
@@ -204,7 +238,7 @@ void dice::enter(eosio::name user, uint64_t gameuuid) {
                                          u.user = user;
                                          u.steps = 0;
                                          u.ts = now();
-                                     });
+                                    });
 
 }
 // action
@@ -237,13 +271,14 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     // 2. check the user is in the given game
     // 3. validate the steps from client is the same as we generate from dice.
     // 4. update position
-    // 5.
+    // 5. distribute awards
     require_auth(user);
     auto _user = is_sched_user_in_game(user, gameuuid);
     bool valid_user_game = (_user != _scheduled_users.cend());
     eosio_assert(valid_user_game, "user not in game");
     uint32_t inner_steps = _user->steps;
     // 2. check steps is smaller than or equal 6
+    // TODO: how to deal with order
     // right: steps & 0xffff 0000 0000 0000
     // left : steps & 0x0000 ffff 0000 0000
     // up   : steps & 0x0000 0000 ffff 0000
@@ -261,27 +296,106 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     eosio::print("|> right: ", right, ", left: ", left, ", up: ", up, ", down: ", down, " |");
 #endif
     uint32_t _steps = (right + left + up + down);
-    eosio_assert(_steps == inner_steps, "total steps error");
     // 3. check steps is equal to given steps
+    eosio_assert(_steps == inner_steps, "total steps error");
+
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "not found game");
     eosio_assert(_game->status == GAME_START, "game does not start");
     incr_game_awards(*_game, FEE);
 
-    if (right > 0) {
-        moveright(user, gameuuid, right);
-    }
-    if (left > 0) {
-        moveleft(user, gameuuid, left);
-    }
-    if (up > 0) {
-        moveup(user, gameuuid, up);
-    }
-    if (down > 0) {
-        movedown(user, gameuuid, down);
+    // 4. arrange the sequence
+    // TODO: right <--> left
+    bool right_first = true;
+    bool up_first = true;
+    point pt = point(_game->pos);
+    bool right_overflow = (pt.row + right < pt.row);
+    if (! right_overflow) {
+        // 1. move right is correct
+        // update virtual position
+        pt.row += right;
+        // move left
+        bool left_overflow = (pt.row - left > pt.row);
+        if (! left_overflow) {
+            // ok
+            right_first = true;
+        } else {
+            eosio_assert(false, "error");
+        }
+    } else {
+        // 2. move right is wrong
+        // try move left first
+        bool left_overflow = (pt.row - left > pt.row);
+        if (! left_overflow) {
+            pt.row -= left;
+            bool right_overflow = (pt.row + right < pt.row);
+            if (! right_overflow) {
+                // ok
+                right_first = false;
+            } else {
+                eosio_assert(false, "error");
+            }
+        } else {
+            // move left is also wrong
+            eosio_assert(false, "error");
+        }
     }
 
-    // TODO: transfer immediately or not ?
+    // // up    <--> down
+    bool up_overflow = (pt.col + up < pt.col);
+    if (! up_overflow) {
+        pt.col += up;
+        bool down_overflow = (pt.col - down > pt.col);
+        if (! down_overflow) {
+            // ok
+            up_first = true;
+        } else {
+            eosio_assert(false, "error");
+        }
+    } else {
+        bool down_overflow  = (pt.col - down > pt.col);
+        if (! down_overflow) {
+            pt.col -= down;
+            bool up_overflow = (pt.col + up < pt.col);
+            if (! up_overflow) {
+                // ok
+                up_first = false;
+            } else {
+                eosio_assert(false, "error");
+            }
+        }
+    }
+
+
+    if (right_first) {
+        if (right > 0) {
+            moveright(user, gameuuid, right);
+        }
+        if (left > 0) {
+            moveleft(user, gameuuid, left);
+        }
+    } else {
+        if (left > 0) {
+            moveleft(user, gameuuid, left);
+        }
+        if (right > 0) {
+            moveright(user, gameuuid, right);
+        }
+    }
+    if (up_first) {
+        if (up > 0) {
+            moveup(user, gameuuid, up);
+        }
+        if (down > 0) {
+            movedown(user, gameuuid, down);
+        }
+    } else {
+        if (down > 0) {
+            movedown(user, gameuuid, down);
+        }
+    }
+
+    // TODO: inner_transfer immediately or not ?
     bool is_won = reach_goal(*_game);
     if (is_won) {
         // TODO: distributed tokens
@@ -303,7 +417,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     // erase this user in scheduled_users table
     _scheduled_users.erase(_user);
 }
-//
+
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
@@ -327,7 +441,7 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     _game->debug();
 #endif
 }
-// action
+
 void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     auto _game = prepare_movement(user, gameuuid, steps);
 
@@ -350,7 +464,7 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 #endif
 
 }
-// action
+
 void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     auto _game = prepare_movement(user, gameuuid, steps);
 
@@ -373,7 +487,7 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 #endif
 
 }
-// action
+
 void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     auto _game = prepare_movement(user, gameuuid, steps);
 
@@ -422,29 +536,38 @@ void dice::distribute(const game& _game,
     const int64_t awards = _game.awards;
     int64_t winner_amount = awards * WINNER_PERCENT;
     int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
+    int64_t platform_amount = awards * PLATFORM_PERCENT;
+    int64_t dividend_pool_amount = awards * DIVIDEND_POOL_PERCENT;
+    int64_t next_goal_amount = awards * NEXT_GOAL_PERCENT;
+    int64_t last_goal_amount = awards * LAST_GOAL_PERCENT;
+
     if (winner_amount <= 0 ||
         participants_amount <= 0) {
         eosio_assert(false, "bug?");
     }
 
-    eosio::name platform = get_self();
-
-    transfer(platform, winner.user, winner_amount);
+    // to winner
+    inner_transfer(get_self(), winner.user, winner_amount);
+    // to dividend pool
+    inner_transfer(get_self(), dividend_account, dividend_pool_amount);
+    // to our platform
+    inner_transfer(get_self(), platform, platform_amount);
+    // to all participants, for fun
     for (auto part : participants) {
-        transfer(platform, part.user, participants_amount);
+        inner_transfer(get_self(), part.user, participants_amount);
     }
 
     desc_game_awards(_game, awards);
     desc_game_shadow_awards(_game, awards);
+
 }
 
-void dice::transfer(eosio::name from, eosio::name to, int64_t amount) {
-    // TODO: verify transfer action again and again
+void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
+    // TODO: verify inner_transfer action again and again
     // NOTE: cleos set account permission your_account active '{"threshold": 1,"keys": [{"key": "EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4","weight": 1}],"accounts": [{"permission":{"actor":"your_contract","permission":"eosio.code"},"weight":1}]}' owner -p your_account
-    eosio_assert(amount > 0, "amount < 0");
+    // eosio_assert(amount > 0, "amount < 0");
 
     eosio::name permission = "active"_n;
-    // std::vector<eosio::permission_level> auths {eosio::permission_level {from, permission}, eosio::permission_level {to, permission}};
     eosio::asset quantity = eosio::asset(amount, eosio::symbol("EOS", 4));
 
     // https://blog.csdn.net/ITleaks/article/details/83069431
@@ -461,12 +584,44 @@ void dice::transfer(eosio::name from, eosio::name to, int64_t amount) {
     id <<= 64;
     id |= from.value;
     txn.send(id, from, false);
+
 }
 
-EOSIO_DISPATCH(dice,
-               (version)(addgame)(debug)
-               (startgame)
-               (enter)(schedusers)
-               (move)(toss)
-               (setfee)(setwidth)(setheight)
+
+#define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
+    extern "C" {                                                        \
+        void apply( uint64_t receiver, uint64_t code, uint64_t action ) { \
+            if (code == receiver and  eosio::name(action) != "enter"_n) { \
+                switch ( action ) {                                     \
+                    EOSIO_DISPATCH_HELPER( TYPE, MEMBERS);              \
+                }                                                       \
+            }                                                           \
+            /* does not allow destructor of thiscontract to run: eosio_exit(0); */ \
+            if( eosio::name(code) == "eosio.token"_n && eosio::name(action) == "transfer"_n ) { \
+                void* buffer = nullptr;                                 \
+                size_t size = action_data_size();                       \
+                constexpr size_t max_stack_buffer_size = 512;           \
+                if( size > 0 ) {                                        \
+                    buffer = max_stack_buffer_size < size ? malloc(size) : alloca(size); \
+                    read_action_data( buffer, size );                   \
+                }                                                       \
+                eosio::datastream<const char*> ds((char*)buffer, size); \
+                TYPE inst(eosio::name(receiver), eosio::name(receiver), ds); \
+                switch( eosio::name(action) ) {                         \
+                case "transfer"_n:                                      \
+                return inst.enter(eosio::name(code));                   \
+                break;                                                  \
+                }                                                       \
+            }                                                           \
+            /* does not allow destructor of thiscontract to run: eosio_exit(0); */ \
+        }                                                               \
+    }                                                                   \
+
+EOSIO_DISPATCH2(dice,
+                (version)(addgame)(debug)
+                (startgame)
+                (enter)
+                (schedusers)
+                (move)(toss)
+                (setfee)(setwidth)(setheight)
     )

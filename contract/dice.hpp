@@ -1,23 +1,27 @@
 #pragma once
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
+#include <eosiolib/transaction.hpp>
+#include <boost/algorithm/string.hpp>
 
 /* DOING:
+ * TODO: remove eosio_assert eagerly
  * TODO: auto-play
- * TODO: call random function
+ * DONE: call random function
  *    - DONE: add PCG random function
  *    - DONE: toss a dice
- *    - TODO: random initalize a game
+ *    - DONE: random initalize a game
  *       - DONE: random initalize all goals
  *       - DONE: random initalize inital postion in a game
- * TODO: advoid overlapping of steps in map
+ * TODO: advoid overlapping of steps in map, verify in backend
  *    - features in next version
  * TODO: show waiting timestamp
- * TODO: validate route steps, total steps should be equal to dice number
- * TODO: security checking
- *    TODO: Delay transfer -> rollback
- *    TODO: fake EOS tokens
- *    TODO: random number generator ?
+ * DONE: validate route steps, total steps should be equal to dice number
+ * DONE: security checking
+ * https://www.bcskill.com/index.php/archives/516.html
+ *    DONE: Delay transfer -> rollback
+ *    DONE: fake EOS tokens
+ *    DONE: random number generator, use tapos block number and tapos block prefix
  * https://www.bcskill.com/index.php/archives/516.html
  */
 
@@ -44,7 +48,15 @@ private:
     uint32_t GAMEBOARD_WIDTH = 23;
     uint32_t GAMEBOARD_HEIGHT = 23;
     static constexpr float WINNER_PERCENT = 0.7;
-    static constexpr float PARTICIPANTS_PERCENT = 0.05;
+    static constexpr float PARTICIPANTS_PERCENT = 0.1;
+    static constexpr float PLATFORM_PERCENT  = 0.05;
+    static constexpr float NEXT_GOAL_PERCENT = 0.05;
+    static constexpr float LAST_GOAL_PERCENT = 0.05;
+    static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
+
+    static constexpr eosio::name dividend_account = "arestest4321"_n;
+    static constexpr eosio::name platform = "arestest1234"_n;
+    static constexpr eosio::name lastgoal = "arestest1234"_n;
 
     static constexpr uint32_t GAME_CLOSE = 1;
     static constexpr uint32_t GAME_START = 2;
@@ -103,7 +115,7 @@ private:
         return true;
     }
 
-    void transfer(eosio::name from, eosio::name to, int64_t amount);
+    void inner_transfer(eosio::name from, eosio::name to, int64_t amount);
 
     TABLE game {
 
@@ -166,7 +178,7 @@ public:
 
     [[eosio::action]] void version();
     [[eosio::action]] void debug();
-
+private:
     typedef eosio::multi_index<"game"_n, game> gametable;
     gametable _games;
 
@@ -174,12 +186,13 @@ public:
     typedef eosio::multi_index<"users2"_n, users> usertable2;
     usertable1 _waitingpool;
     usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
-
+public:
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
     [[eosio::action]] void addgame();
     [[eosio::action]] void startgame(uint64_t gameuuid);
 
-    [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
+    // [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
+    [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
     // call it from offchain every 100 ms/1 s
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
 
@@ -189,10 +202,13 @@ public:
     [[eosio::action]] void getawards();    // get current awards
     [[eosio::action]] void getshaawards(); // get shadow awards
 
-    // TODO:
     [[eosio::action]] void setfee(int64_t fee); // set fee for current games
     [[eosio::action]] void setwidth(uint32_t w);
     [[eosio::action]] void setheight(uint32_t h);
+    [[eosio::action]] void getwidth(uint64_t gameuuid);
+    [[eosio::action]] void getheight(uint64_t gameuuid);
+    [[eosio::action]] void getgoals(uint64_t gameuuid);
+    [[eosio::action]] void getpos(uint64_t gameuuid);
 
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
@@ -300,6 +316,11 @@ private:
 
     void pcg32_srandom_r(uint64_t initstate, uint64_t initseq) {
         // add a random engine
+        uint64_t block_num = (uint64_t)tapos_block_num();
+        uint64_t block_prefix = (uint64_t)tapos_block_prefix();
+        initstate = block_num << 32 | block_prefix;
+        initseq = now();
+
         auto _rng_it = _rngtbl.begin();
         if (_rng_it == _rngtbl.end()) {
             _rng_it = _rngtbl.emplace(get_self(), [&](auto &r) {
@@ -370,6 +391,12 @@ private:
         uint32_t pos = _game.pos;
         point pt = point(pos);
 
+    }
+    uint64_t extract_gameuuid_from_memo(std::string memo) {
+        std::vector<std::string> results;
+        boost::split(results, memo, [](char c){return c == ':';});
+        uint64_t gameuuid = std::stoull(results[1]);
+        return gameuuid;
     }
     // void init_game(game &_game) {
     //     pcg32_srandom_r(now(), initseq);
