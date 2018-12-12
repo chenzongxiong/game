@@ -59,35 +59,39 @@ Hi this is Scatter Demo, Please see console logs.
                         `${account.name}@${account.authority}`,
                     ]
                 };
-                // console.log("Hello world");
-                eos.getTableRows({
-                    code: "arestest1234",
-                    scope: "arestest1234",
-                    table: "game",
-                    json: true
-                }).then(function(res) {
-                    console.log(res);
-                });
-
-                eos.getTableRows({
-                    code: "arestest1234",
-                    scope: "arestest1234",
-                    table: "users1",
-                    json: true
-                }).then(function(res) {
-                    console.log(res);
-                });
-
-                eos.getTableRows({
-                    code: "arestest1234",
-                    scope: "arestest1234",
-                    table: "users2",
-                    json: true
-                }).then(function(res) {
-                    console.log(res);
-                });
-
+                // poll tables/database on EOS chain
+                // code: contract name
+                // scope: contract in which scope
                 var contract_name = "arestest1234";
+                var game_table = "game";
+                eos.getTableRows({
+                    code: contract_name,
+                    scope: contract_name,
+                    table: game_table,
+                    json: true
+                }).then(function(res) {
+                    console.log(res);
+                });
+                var waitingpool_table = "users1";
+                eos.getTableRows({
+                    code: contract_name,
+                    scope: contract_name,
+                    table: waitingpool_table,
+                    json: true
+                }).then(function(res) {
+                    console.log(res);
+                });
+                var scheduledpool_table = "users2";
+                eos.getTableRows({
+                    code: contract_name,
+                    scope: contract_name,
+                    table: scheduledpool_table,
+                    json: true
+                }).then(function(res) {
+                    console.log(res);
+                });
+                // call `version` function on the chain
+                // no authentication
                 eos.contract(contract_name, {requiredFields}).then(
                     contract => {
                         contract.version(options).then(trx => {
@@ -101,6 +105,28 @@ Hi this is Scatter Demo, Please see console logs.
                         });
                     }
                 );
+                // *trigger* `enter` function on the chain
+                var our_contract_name = "arestest1234";
+                var amount = "0.1000 EOS";   /* NOTE: must 4 precision, or error occurs  */
+                var memo = "gameuuid:0";     /* memo must be set in such format: "key:val" */
+                // key is `gameuuid` and value is the gameuuid a user wants to enter
+                eos.contract("eosio.token", {requiredFields}).then(
+                    contract => {
+                        // transfer(from_user, to_user, quantity);
+                        // `from_user` transfers `quantity` TOKENS to `to_user`
+                        // `from_user` and `to_user` must be different, or it throws exceptions
+
+                        contract.transfer(account.name, our_contract_name, amount, memo, options).then(trx => {
+                            console.log("transfer tokens to our platform", trx);
+                        }).catch(e => {
+                            console.log("error", e);
+                            if (e.toString().includes("overdrawn balance")) {
+                                alert("No money, go back to Getting Started and refill")
+                            }
+                        });
+                    }
+                );
+
             }).catch(
                 e => {
                     console.log("error", e);
