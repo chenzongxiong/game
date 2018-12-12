@@ -115,7 +115,6 @@ Hi this is Scatter Demo, Please see console logs.
                         // transfer(from_user, to_user, quantity);
                         // `from_user` transfers `quantity` TOKENS to `to_user`
                         // `from_user` and `to_user` must be different, or it throws exceptions
-
                         contract.transfer(account.name, our_contract_name, amount, memo, options).then(trx => {
                             console.log("transfer tokens to our platform", trx);
                         }).catch(e => {
@@ -126,6 +125,27 @@ Hi this is Scatter Demo, Please see console logs.
                         });
                     }
                 );
+                // how to call a contract function with parameters
+                // for example, there is a function like
+
+                // void dice::toss(eosio::name user, uint64_t gameuuid) { // do some stuffs }
+                // we can call it by scatter like the following snippets
+                // eos.contract($contract_name, {requiredFields}).then(
+                //     contract => {
+                //         contract.toss(account.name,    /* first parameter corresponding to `eosio::name user` */
+                //                       0,               /* second parameter corresponding to `uint64_t gameuuid` */
+                //                       options          /* options contain permission */
+                //         ).then(trx => {
+                //             console.log("transfer tokens to our platform", trx);
+                //             // trx contains transaction id, we can use it to query whether a transaction is successful or not
+                //         }).catch(e => {
+                //             console.log("error", e);
+                //             if (e.toString().includes("overdrawn balance")) {
+                //                 alert("No money, go back to Getting Started and refill")
+                //             }
+                //         });
+                //     }
+                // );
 
             }).catch(
                 e => {
