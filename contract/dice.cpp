@@ -199,8 +199,6 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
  * Users functions
  ********************************************************************************/
 // action
-// void dice::enter(eosio::name user, uint64_t _gameuuid) {
-// void dice::enter(eosio::name user, uint64_t amount) {
 void dice::enter(eosio::name user) {
     /**
      * NOTE: a user can enter game multiple times
@@ -209,7 +207,6 @@ void dice::enter(eosio::name user) {
      * 3. increase shadow awards pool
      */
     eosio_assert(user == "eosio.token"_n, "faks tokens");
-
     auto data = eosio::unpack_action_data<eosio_token_transfer>();
     if (data.to != get_self()) {
         return;
@@ -235,7 +232,7 @@ void dice::enter(eosio::name user) {
                                          u.uuid= _waitingpool.available_primary_key();
                                          u.gameuuid = _game->uuid;
                                          u.no = -1;
-                                         u.user = user;
+                                         u.user = data.from;
                                          u.steps = 0;
                                          u.ts = now();
                                     });
@@ -620,7 +617,6 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
 EOSIO_DISPATCH2(dice,
                 (version)(addgame)(debug)
                 (startgame)
-                (enter)
                 (schedusers)
                 (move)(toss)
                 (setfee)(setwidth)(setheight)
