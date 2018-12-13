@@ -2,10 +2,10 @@
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
 #include <eosiolib/transaction.hpp>
+
 #include <boost/algorithm/string.hpp>
 
 /* DOING:
- * TODO: remove eosio_assert eagerly
  * TODO: auto-play
  * DONE: call random function
  *    - DONE: add PCG random function
@@ -120,13 +120,15 @@ private:
     TABLE game {
 
         uint64_t uuid;
-        uint32_t pos;
+        uint32_t board_width;
+        uint32_t board_height;
+        int64_t fee;
+
         uint32_t status;
+        uint32_t pos;
         int64_t awards;         // the number of tokens we will distribute
         int64_t shadow_awards;  // the number of tokens we collect in this game
         std::vector<uint32_t> goals;
-        static const uint32_t board_width = 23;
-        static const uint32_t board_height = board_width ;
 
         uint64_t primary_key() const {
             return uuid;
@@ -155,6 +157,7 @@ private:
         eosio::name user;
         // eosio::block_timestamp ts;
         time_t ts;
+        time_t update_ts;
         uint64_t primary_key() const {
             return uuid;
         }
@@ -170,45 +173,54 @@ private:
             eosio::print("user: ", user, ", ");
             eosio::print("steps: ", steps, ", ");
             eosio::print("timestamp: ", ts, ", ");
+            eosio::print("update timestamp: ", update_ts, ", ");
             eosio::print(" |");
         }
     };
 
 public:
 
+#ifdef DEBUG
     [[eosio::action]] void version();
     [[eosio::action]] void debug();
+#endif
+
 private:
-    typedef eosio::multi_index<"game"_n, game> gametable;
+    typedef eosio::multi_index<"gametbl"_n, game> gametable;
     gametable _games;
 
-    typedef eosio::multi_index<"users1"_n, users> usertable1;
-    typedef eosio::multi_index<"users2"_n, users> usertable2;
+    typedef eosio::multi_index<"waittbl"_n, users> usertable1;
+    typedef eosio::multi_index<"schedtbl"_n, users> usertable2;
     usertable1 _waitingpool;
     usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
 public:
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
-    [[eosio::action]] void addgame();
+    [[eosio::action]] void addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee);
+#ifdef DEBUG
+    [[eosio::action]] void clear();
+#endif
     [[eosio::action]] void startgame(uint64_t gameuuid);
+    [[eosio::action]] void closegame(uint64_t gameuuid);
+    [[eosio::action]] void stopgame(uint64_t gameuuid);
 
     // [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
     [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
     // call it from offchain every 100 ms/1 s
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
 
-    [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid);
+    [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid, uint32_t seed);
     [[eosio::action]] void move(eosio::name user, uint64_t gameuuid, uint64_t steps);
-    [[eosio::action]] void getusers() const; // extract latest scheduled users information, users to toss dices
-    [[eosio::action]] void getawards();    // get current awards
-    [[eosio::action]] void getshaawards(); // get shadow awards
+    // [[eosio::action]] void getusers() const; // extract latest scheduled users information, users to toss dices
+    // [[eosio::action]] void getawards();    // get current awards
+    // [[eosio::action]] void getshaawards(); // get shadow awards
 
-    [[eosio::action]] void setfee(int64_t fee); // set fee for current games
-    [[eosio::action]] void setwidth(uint32_t w);
-    [[eosio::action]] void setheight(uint32_t h);
-    [[eosio::action]] void getwidth(uint64_t gameuuid);
-    [[eosio::action]] void getheight(uint64_t gameuuid);
-    [[eosio::action]] void getgoals(uint64_t gameuuid);
-    [[eosio::action]] void getpos(uint64_t gameuuid);
+    // [[eosio::action]] void setfee(int64_t fee); // set fee for current games
+    // [[eosio::action]] void setwidth(uint32_t w);
+    // [[eosio::action]] void setheight(uint32_t h);
+    // [[eosio::action]] void getwidth(uint64_t gameuuid);
+    // [[eosio::action]] void getheight(uint64_t gameuuid);
+    // [[eosio::action]] void getgoals(uint64_t gameuuid);
+    // [[eosio::action]] void getpos(uint64_t gameuuid);
 
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
@@ -398,10 +410,4 @@ private:
         uint64_t gameuuid = std::stoull(results[1]);
         return gameuuid;
     }
-    // void init_game(game &_game) {
-    //     pcg32_srandom_r(now(), initseq);
-    //     point pt = pcg32_boundedrand_r(centroids.size());
-    //     return pt.to_pos()
-
-    // }
 };

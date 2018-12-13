@@ -1,0 +1,85 @@
+#+OPTIONS: ^:nil
+* How to decide a user get a goal ?
+   1. The frontend can also *maintain cache* to *store the status of current map*. And
+      I think it's suitable for most *normal* users.
+
+      For *crackers*, they might pass by the frontend to send requests to smart contracts.
+      We don't have to care about them since the verification is done on the EOS chain.
+
+   2. If a user reaches a goal, logically, I delete a goal by marking it as
+     *0xffffffff*. Since I have no way to notify or send results to
+     frontend from EOS chain.
+     So the frontend can decide whether a user win a goal or not
+     via checking a goal is marked as 0xffffffff or not.
+
+
+   To sum up, I think the first solution would be easier to implement.
+   But 李志超Jack@Ares should makes the final decision.
+
+
+* action (function) everyone can call
+** version
+   - no parameters
+* actions (functions) can be executed only by our platform (or contract)
+
+** ~addgame~
+   - uint32_t board_width
+   - uint32_t board_height
+   - int64_t fee
+
+** ~startgame~
+   - uint64_t gameuuid
+
+** ~schedusers~
+   - uint64_t gameuuid
+   - uint32_t total: the number of users to schedule at this time
+** ~debug~
+   - no parameters
+* action (functions) can be executed by all paid users
+** ~toss~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication
+   - uint64_t gameuuid: the game user is in
+   - uint32_t seed: the lucky number a user enters
+
+** ~move~
+   - eosio::name user
+   - uint64_t gameuuid
+   - uint64_t steps:
+     *NOTES*
+     In general, when a user updates the maps according to dice number he gets, it should contain the directions and
+     steps.
+
+     For example, a user tosses dice number *5*. He may design the following routes
+     - {"right": 2, "left": 1, "up": 1, "down": 1}
+     - {"right": 1, "up": 1, "left": 1, "up": 1, "right": 1}
+
+       case 1. we encode the *directions* and *steps* into 64-bit integer, like
+
+       #+BEGIN_EXAMPLE
+       uint64_t steps = 0;
+       steps |= right;
+       steps <<= 16;
+       steps |= left;
+       steps <<= 16;
+       steps |= up;
+       steps <<= 16;
+       steps |= down;
+       #+END_EXAMPLE
+
+       later the contract will decode *steps* as following,
+
+       #+BEGIN_EXAMPLE
+       uint32_t right = (steps >> 48) & 0xffff;
+       uint32_t left  = (steps >> 32) & 0xffff;
+       uint32_t up    = (steps >> 16) & 0xffff;
+       uint32_t down  = steps         & 0xffff;
+       #+END_EXAMPLE
+
+       case 2: If this happens, the frontend can translate it into
+       {"right": 2, "left": 1, "up": 2, "down": 0}
+       then encode it as above.
+
+       Here might be vulnerable close to the boards. Welcome to discuss.
+
+
+** ~transfer~ action in eosio.token contract, shown in demo

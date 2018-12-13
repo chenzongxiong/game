@@ -1,6 +1,5 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/transaction.hpp>
-#include "./eosio.token/include/eosio.token/eosio.token.hpp"
 #include "dice.hpp"
 
 
@@ -12,27 +11,13 @@ struct eosio_token_transfer {
 };
 
 // action
+#ifdef DEBUG
 void dice::version() {
-    eosio::print(_VERSION.c_str(), ", self: ", get_self());
+    eosio::print(this->_VERSION.c_str());
 }
 /********************************************************************************
  * administrator functions
  ********************************************************************************/
-// action
-void dice::setfee(int64_t fee) {
-    require_auth(get_self());
-    FEE = fee;
-}
-void dice::setwidth(uint32_t w) {
-    require_auth(get_self());
-    eosio_assert(w >= 6, "error: w < 6");
-    GAMEBOARD_WIDTH = w;
-}
-void dice::setheight(uint32_t h) {
-    require_auth(get_self());
-    eosio_assert(h >= 6, "error: h < 6");
-    GAMEBOARD_HEIGHT = h;
-}
 // action
 void dice::debug() {
     require_auth(get_self());
@@ -78,16 +63,16 @@ void dice::debug() {
         _rng.debug();
     }
 }
+#endif
 // action
-// void dice::addgame(uint32_t board_width, uint32_t board_height) {
-void dice::addgame() {
+void dice::addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee) {
     require_auth(get_self());
 
-    uint32_t board_width = GAMEBOARD_WIDTH;
-    uint32_t board_height = GAMEBOARD_HEIGHT;
-
-    eosio_assert(MAXSIZE > board_width, "width > MAXSIZE");
-    eosio_assert(MAXSIZE > board_height, "height > MAXSIZE");
+    eosio_assert(fee > 0, "fee < 0");
+    eosio_assert(MAXSIZE > width, "width > MAXSIZE, invalid");
+    eosio_assert(MAXSIZE > height, "height > MAXSIZE, invalid");
+    eosio_assert(status == GAME_CLOSE || status == GAME_START,
+                 "invalid status");
     // uint32_t pos = get_rnd_game_pos(board_width, board_height);
     pcg32_srandom_r(now(), initseq);
     // 1. randomly pick a point as initalized points
@@ -102,16 +87,25 @@ void dice::addgame() {
         }
         goals.push_back(centroids[i].to_pos());
     }
+
     _games.emplace(get_self(), [&](auto &g) {
                                    g.uuid = _games.available_primary_key();
                                    g.pos = pos;
-                                   g.status = GAME_CLOSE;
+                                   // g.status = GAME_CLOSE;
+                                   g.status = status;
+                                   g.board_width = width;
+                                   g.board_height = height;
+                                   g.fee = fee;
                                    g.awards = 0;
                                    g.shadow_awards = 0;
                                    for (auto _gl : goals) {
                                        g.goals.push_back(_gl);
                                    }
                                });
+#ifdef DEBUG
+    eosio::print("successfully add a new game");
+#endif
+
 }
 // action
 void dice::startgame(uint64_t gameuuid) {
@@ -124,7 +118,6 @@ void dice::startgame(uint64_t gameuuid) {
                                      });
 
 }
-
 // action
 void dice::schedusers(uint64_t gameuuid, uint32_t total) {
     // 1. authorization, only platform could run schedulers
@@ -177,10 +170,10 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
                                                  u.no = _scheduled_users.available_primary_key();
                                                  u.user = _user.user;
                                                  u.ts = _user.ts;
+                                                 u.update_ts = now();
                                              });
         latest_scheduled_users.push_back(_user);
         // erase them from waitingpool since they are scheduled
-        // _waitingpool.erase(_user);
         auto u_it = _waitingpool.find(_user.uuid);
         _waitingpool.erase(u_it);
 
@@ -194,7 +187,28 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
 #endif
 }
 
+// action
+#ifdef DEBUG
+void dice::clear() {
+    require_auth(get_self());
+    // clear gametable
+    auto it1 = _games.begin();
+    while (it1 != _games.end()) {
+        it1 = _games.erase(it1);
+    }
+    // clear waitingpool
+    auto it2 = _waitingpool.begin();
+    while (it2 != _waitingpool.end()) {
+        it2 = _waitingpool.erase(it2);
+    }
+    // clear schedued users
+    auto it3 = _scheduled_users.begin();
+    while (it3 != _scheduled_users.end()) {
+        it3 = _scheduled_users.erase(it3);
+    }
 
+}
+#endif
 /********************************************************************************
  * Users functions
  ********************************************************************************/
@@ -206,43 +220,52 @@ void dice::enter(eosio::name user) {
      * 2. put him/her in waiting room
      * 3. increase shadow awards pool
      */
-    eosio_assert(user == "eosio.token"_n, "faks tokens");
+    eosio_assert(user == "eosio.token"_n, "fake tokens");
     auto data = eosio::unpack_action_data<eosio_token_transfer>();
-    if (data.to != get_self()) {
-        return;
+    if (data.from != get_self()) {
+        eosio_assert(data.to == get_self(), "didn't transfer tokens to me");
+
+        eosio_assert(data.quantity.is_valid(), "invalid quantity");
+        eosio_assert(data.quantity.amount > 0, "must transfer positive quantity");
+        eosio_assert(data.quantity.symbol == eosio::symbol("EOS", 4), "symbol precision mismatch");
+        eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
+
+        uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
+        auto _game = get_game_by_uuid(gameuuid);
+        eosio_assert(_game != _games.cend(), "not found game.");
+        eosio_assert(_game->status != GAME_OVER, "game is over");
+
+        if (data.quantity.amount >= _game->fee) { // pay enough fee
+            // check game
+            incr_game_shadow_awards(*_game, FEE);
+            _waitingpool.emplace(get_self(), [&](auto &u) {
+                                                 u.uuid= _waitingpool.available_primary_key();
+                                                 u.gameuuid = _game->uuid;
+                                                 u.no = -1;
+                                                 u.user = data.from;
+                                                 u.steps = 0;
+                                                 u.ts = now();
+                                                 u.update_ts = now();
+                                             });
+        } else {
+            // come here because someone send request directly and doesn't
+            // pay enough fee. Never open a door for him, but we accept his fee
+            eosio::print("crackers come");
+        }
+    } else {
+        eosio::print("transfer action is trigger by platform, ignore it");
     }
-    eosio_assert(data.quantity.is_valid(), "invalid quantity");
-    eosio_assert(data.quantity.amount > 0, "must transfer positive quantity");
-    eosio_assert(data.quantity.symbol == eosio::symbol("EOS", 4), "symbol precision mismatch");
-    eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
-
-    if (data.quantity.amount < FEE) {
-        // eosio_assert( quantity.amount == FEE, "must transfer positive quantity" );
-        return;
-    }
-
-    uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
-    auto _game = get_game_by_uuid(gameuuid);
-    // check game
-    eosio_assert(_game != _games.cend(), "not found game.");
-    eosio_assert(_game->status != GAME_OVER, "game is over");
-
-    incr_game_shadow_awards(*_game, FEE);
-    _waitingpool.emplace(get_self(), [&](auto &u) {
-                                         u.uuid= _waitingpool.available_primary_key();
-                                         u.gameuuid = _game->uuid;
-                                         u.no = -1;
-                                         u.user = data.from;
-                                         u.steps = 0;
-                                         u.ts = now();
-                                    });
-
+#ifdef DEBUG
+    eosio::print("call enter successfully");
+#endif
 }
 // action
-void dice::toss(eosio::name user, uint64_t gameuuid) {
+void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     // 1. user authentication
     // 2. randomly generate dice number
     // 3. assign that number to that user
+    // NOTE: each user can only toss once
+
     require_auth(user);
 
     auto end = _scheduled_users.cend();
@@ -250,14 +273,18 @@ void dice::toss(eosio::name user, uint64_t gameuuid) {
         if (_user->user == user &&
             _user->gameuuid == gameuuid &&
             _user->steps == 0) {
-            // eosio_assert(_user->steps == 0, "already assign steps to this user");
+            // deal a user enter multiple times
+            // if a scheduled user with steps nonzero
+            // means he was assigned last time
             uint32_t dice_number = get_rnd_dice_number();
 #ifdef DEBUG
             eosio::print("dice number: ", dice_number);
 #endif
             _scheduled_users.modify(_user, get_self(), [&](auto &u) {
                                                            u.steps = dice_number;
+                                                           u.update_ts = now();
                                                        });
+            break;
         }
     }
 }
@@ -302,7 +329,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     incr_game_awards(*_game, FEE);
 
     // 4. arrange the sequence
-    // TODO: right <--> left
+    // DOINGO: right <--> left
     bool right_first = true;
     bool up_first = true;
     point pt = point(_game->pos);
@@ -560,9 +587,8 @@ void dice::distribute(const game& _game,
 }
 
 void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
-    // TODO: verify inner_transfer action again and again
+    // DONE: verify inner_transfer action again and again
     // NOTE: cleos set account permission your_account active '{"threshold": 1,"keys": [{"key": "EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4","weight": 1}],"accounts": [{"permission":{"actor":"your_contract","permission":"eosio.code"},"weight":1}]}' owner -p your_account
-    // eosio_assert(amount > 0, "amount < 0");
 
     eosio::name permission = "active"_n;
     eosio::asset quantity = eosio::asset(amount, eosio::symbol("EOS", 4));
@@ -594,7 +620,7 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
                 }                                                       \
             }                                                           \
             /* does not allow destructor of thiscontract to run: eosio_exit(0); */ \
-            if( eosio::name(code) == "eosio.token"_n && eosio::name(action) == "transfer"_n ) { \
+            else if( eosio::name(code) == "eosio.token"_n && eosio::name(action) == "transfer"_n ) { \
                 void* buffer = nullptr;                                 \
                 size_t size = action_data_size();                       \
                 constexpr size_t max_stack_buffer_size = 512;           \
@@ -615,9 +641,14 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
     }                                                                   \
 
 EOSIO_DISPATCH2(dice,
-                (version)(addgame)(debug)
+#ifdef DEBUG
+                (version)
+                (debug)
+                (clear)
+#endif
+                (addgame)
                 (startgame)
                 (schedusers)
-                (move)(toss)
-                (setfee)(setwidth)(setheight)
+                (move)
+                (toss)
     )

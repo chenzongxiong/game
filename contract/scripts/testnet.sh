@@ -3,7 +3,7 @@ cleos=/opt/eosio/bin/cleos
 echo "====================VERSION===================="
 $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 version '{}' -p arestest1234 -f
 echo "====================add game===================="
-$cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 addgame '{}' -p arestest1234 -f
+$cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 addgame '{"width": 25, "height": 30, "status": 2, "fee": 10000}' -p arestest1234 -f
 $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 startgame '{"gameuuid": 0}' -p arestest1234 -f
 echo "====================debug===================="
 $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 debug '{}' -p arestest1234 -f
