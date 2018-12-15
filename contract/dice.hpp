@@ -23,6 +23,8 @@
  *    DONE: fake EOS tokens
  *    DONE: random number generator, use tapos block number and tapos block prefix
  * https://www.bcskill.com/index.php/archives/516.html
+ * TODO: generate goals randomly
+ *
  */
 
 #define DEBUG 1
@@ -62,6 +64,8 @@ private:
     static constexpr uint32_t GAME_START = 2;
     static constexpr uint32_t GAME_OVER = 4;
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
+
+    static constexpr uint32_t TIMEOUT_USERS = 30;
 
     struct point {
         uint32_t row;
@@ -128,6 +132,7 @@ private:
         uint32_t pos;
         int64_t awards;         // the number of tokens we will distribute
         int64_t shadow_awards;  // the number of tokens we collect in this game
+        uint64_t total_number;  // total number of users enter this game
         std::vector<uint32_t> goals;
 
         uint64_t primary_key() const {
@@ -146,6 +151,7 @@ private:
                 point pt = point(goals[i]);
                 eosio::print("goal ", i, ": ", "(", pt.row, ", ", pt.col, "), ");
             }
+            eosio::print("total_number: ", total_number, ", ");
             eosio::print(" |");
         }
     };
@@ -299,7 +305,7 @@ private:
         // 3. check steps is equal to given steps
         auto _game = get_game_by_uuid(gameuuid);
         eosio_assert(_game->status == GAME_START, "game does not start");
-        incr_game_awards(*_game, FEE);
+        incr_game_awards(*_game, _game->fee);
         return _game;
     }
 

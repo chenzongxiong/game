@@ -73,7 +73,7 @@ void dice::addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee
     eosio_assert(MAXSIZE > height, "height > MAXSIZE, invalid");
     eosio_assert(status == GAME_CLOSE || status == GAME_START,
                  "invalid status");
-    // uint32_t pos = get_rnd_game_pos(board_width, board_height);
+
     pcg32_srandom_r(now(), initseq);
     // 1. randomly pick a point as initalized points
     uint32_t idx = pcg32_boundedrand_r(centroids.size());
@@ -98,6 +98,7 @@ void dice::addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee
                                    g.fee = fee;
                                    g.awards = 0;
                                    g.shadow_awards = 0;
+                                   g.total_number = 0;
                                    for (auto _gl : goals) {
                                        g.goals.push_back(_gl);
                                    }
@@ -121,15 +122,24 @@ void dice::startgame(uint64_t gameuuid) {
 // action
 void dice::schedusers(uint64_t gameuuid, uint32_t total) {
     // 1. authorization, only platform could run schedulers
-    // 2. random pick <total> users in waiting pool
-    // 3. put them into scheduling users vector
-    // 4. erase them from waitingpool
+    // 2. remove expired users
+    // 3. random pick <total> users in waiting pool
+    // 4. put them into scheduling users vector
+    // 5. erase them from waitingpool
 
     require_auth(get_self());
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "bug ? game not found.");
     eosio_assert(_game->status == GAME_START, "bug ? game does not start");
 
+    auto sched_user_it = _scheduled_users.begin();
+    while (sched_user_it != _scheduled_users.end()) {
+        if ((now() - sched_user_it->update_ts) > TIMEOUT_USERS) {
+            sched_user_it = _scheduled_users.erase(sched_user_it);
+        } else {
+            sched_user_it ++;
+        }
+    }
     // multiple user in multiple games
     // how many people in game gameuuid
     std::vector<users> latest_scheduling_users;
@@ -237,7 +247,7 @@ void dice::enter(eosio::name user) {
 
         if (data.quantity.amount >= _game->fee) { // pay enough fee
             // check game
-            incr_game_shadow_awards(*_game, FEE);
+            incr_game_shadow_awards(*_game, _game->fee);
             _waitingpool.emplace(get_self(), [&](auto &u) {
                                                  u.uuid= _waitingpool.available_primary_key();
                                                  u.gameuuid = _game->uuid;
@@ -246,6 +256,9 @@ void dice::enter(eosio::name user) {
                                                  u.steps = 0;
                                                  u.ts = now();
                                                  u.update_ts = now();
+                                             });
+            _games.modify(_game, get_self(), [&](auto &g) {
+                                                 g.total_number ++;
                                              });
         } else {
             // come here because someone send request directly and doesn't
@@ -326,7 +339,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "not found game");
     eosio_assert(_game->status == GAME_START, "game does not start");
-    incr_game_awards(*_game, FEE);
+    incr_game_awards(*_game, _game->fee);
 
     // 4. arrange the sequence
     // DOINGO: right <--> left
@@ -366,10 +379,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     }
 
     // // up    <--> down
-    bool up_overflow = (pt.col + up < pt.col);
+    bool up_overflow = (pt.col - up > pt.col);
     if (! up_overflow) {
-        pt.col += up;
-        bool down_overflow = (pt.col - down > pt.col);
+        pt.col -= up;
+        bool down_overflow = (pt.col + down < pt.col);
         if (! down_overflow) {
             // ok
             up_first = true;
@@ -377,10 +390,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             eosio_assert(false, "error");
         }
     } else {
-        bool down_overflow  = (pt.col - down > pt.col);
+        bool down_overflow  = (pt.col + down < pt.col);
         if (! down_overflow) {
-            pt.col -= down;
-            bool up_overflow = (pt.col + up < pt.col);
+            pt.col += down;
+            bool up_overflow = (pt.col - up > pt.col);
             if (! up_overflow) {
                 // ok
                 up_first = false;
@@ -422,7 +435,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     // TODO: inner_transfer immediately or not ?
     bool is_won = reach_goal(*_game);
     if (is_won) {
-        // TODO: distributed tokens
 #ifdef DEBUG
         eosio::print("user: ", user, " won.");
 #endif
@@ -440,6 +452,9 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     }
     // erase this user in scheduled_users table
     _scheduled_users.erase(_user);
+    _games.modify(_game, get_self(), [&](auto &g) {
+                                         g.total_number --;
+                                     });
 }
 
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
@@ -450,14 +465,14 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
+#ifdef DEBUG
     pt.debug();
+#endif
     bool overflow = (pt.row + steps < pt.row);
     eosio_assert(! overflow, "upper overflow");
     pt.row = pt.row + steps;
     bool valid = is_valid_pos(*_game, pt);
-    if (! valid) {
-        eosio_assert(false, "invalid right steps");
-    }
+    eosio_assert(valid, "invalid right steps");
 
     update_game_pos(*_game, pt);
 #ifdef DEBUG
@@ -471,15 +486,15 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
+#ifdef DEBUG
     pt.debug();
+#endif
     bool overflow = (pt.row - steps > pt.row);
     eosio_assert(! overflow, "lower overflow");
 
     pt.row = pt.row - steps;
     bool valid = is_valid_pos(*_game, pt);
-    if (! valid) {
-        eosio_assert(false, "invalid left steps");
-    }
+    eosio_assert(valid, "invalid left steps");
 
     update_game_pos(*_game, pt);
 #ifdef DEBUG
@@ -494,15 +509,15 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
+#ifdef DEBUG
     pt.debug();
-    bool overflow = (pt.col + steps < pt.col);
+#endif
+    bool overflow = (pt.col - steps > pt.col);
     eosio_assert(! overflow, "upper overflow");
 
-    pt.col = pt.col + steps;
+    pt.col -= steps;
     bool valid = is_valid_pos(*_game, pt);
-    if (! valid) {
-        eosio_assert(false, "invalid up steps");
-    }
+    eosio_assert(valid, "invalid up steps");
 
     update_game_pos(*_game, pt);
 #ifdef DEBUG
@@ -516,14 +531,14 @@ void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
+#ifdef DEBUG
     pt.debug();
-    bool overflow = (pt.col - steps > pt.col);
+#endif
+    bool overflow = (pt.col + steps < pt.col);
     eosio_assert(! overflow, "lower overflow");
-    pt.col = pt.col - steps;
+    pt.col += steps;
     bool valid = is_valid_pos(*_game, pt);
-    if (! valid) {
-        eosio_assert(false, "invalid down steps");
-    }
+    eosio_assert(valid, "invalid down steps");
 
     update_game_pos(*_game, pt);
 #ifdef DEBUG
