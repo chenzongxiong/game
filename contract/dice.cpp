@@ -65,7 +65,9 @@ void dice::debug() {
 }
 #endif
 // action
-void dice::addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee) {
+void dice::addgame(std::string game_name, uint32_t width,
+                   uint32_t height, uint32_t status, int64_t fee) {
+
     require_auth(get_self());
 
     eosio_assert(fee > 0, "fee < 0");
@@ -99,6 +101,7 @@ void dice::addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee
                                    g.awards = 0;
                                    g.shadow_awards = 0;
                                    g.total_number = 0;
+                                   g.game_name = game_name;
                                    for (auto _gl : goals) {
                                        g.goals.push_back(_gl);
                                    }
@@ -403,7 +406,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         }
     }
 
-
     if (right_first) {
         if (right > 0) {
             moveright(user, gameuuid, right);
@@ -438,17 +440,33 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
 #ifdef DEBUG
         eosio::print("user: ", user, " won.");
 #endif
-        std::vector<users> participants;
-        for (auto _u : _waitingpool) {
-            participants.push_back(_u);
-        }
-        for (auto _u : _scheduled_users) {
-            participants.push_back(_u);
-        }
-        distribute(*_game,
-                   *_user,
-                   participants);
+        // std::vector<users> participants;
+        // for (auto _u : _waitingpool) {
+        //     participants.push_back(_u);
+        // }
+        // for (auto _u : _scheduled_users) {
+        //     participants.push_back(_u);
+        // }
+        // TODO: put it in another function
+        // distribute(*_game,
+        //            *_user,
+        //            participants);
+        // update_heroes(_user, _game->awards);
+        // add it to winner_table
+        _winners.emplace(get_self(), [&](auto &w) {
+                                         w.uuid = _winners.available_primary_key();
+                                         // w._user = _user;
+                                         w.user = user;
+                                         w.gameuuid = _game->uuid;
+                                         w.ts = now();
+                                         w.update_ts = now();
+                                         w.awards = _game->awards;
+                                         w.acc_awards = 0;
+                                   });
+
+
         close_game(*_game);
+
     }
     // erase this user in scheduled_users table
     _scheduled_users.erase(_user);
@@ -457,6 +475,36 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                      });
 }
 
+void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
+    require_auth(user);
+
+    auto _game = get_game_by_uuid(gameuuid);
+    eosio_assert(_game != _games.cend(), "not found game");
+
+    auto _winner = is_won_user_in_game(user, gameuuid);
+    eosio_assert(_winner != _winners.cend(), "winner not in game");
+    // auto user = _winner->user;
+
+    std::vector<eosio::name> participants;
+
+    for (auto _u : _waitingpool) {
+        participants.push_back(_u.user);
+    }
+    for (auto _u : _scheduled_users) {
+        participants.push_back(_u.user);
+    }
+    // distribute(*_game,
+    //            *_user,
+    //            participants,
+    //            _winner->awards);
+    distribute(*_game,
+               user,
+               participants,
+               _winner->awards);
+
+
+    update_heroes(user, _game->awards);
+}
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
@@ -566,13 +614,52 @@ bool dice::reach_goal(const game &_game) {
     return false;
 }
 
+// void dice::distribute(const game& _game,
+//                       const users& winner,
+//                       std::vector<users> participants,
+//                       const uint64_t awards) {
+//     // winner gets WINNER_PERCENTS
+//     // PARTICIPANTS get PARTICPANTS PERCENTS
+//     // DONE: reach a goal, we distribute token to all participants, just for fun.
+//     // const int64_t awards = _game.awards;
+//     desc_game_awards(_game, awards);
+//     desc_game_shadow_awards(_game, awards);
+
+//     int64_t winner_amount = awards * WINNER_PERCENT;
+//     int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
+//     int64_t platform_amount = awards * PLATFORM_PERCENT;
+//     int64_t dividend_pool_amount = awards * DIVIDEND_POOL_PERCENT;
+//     int64_t next_goal_amount = awards * NEXT_GOAL_PERCENT;
+//     int64_t last_goal_amount = awards * LAST_GOAL_PERCENT;
+
+//     if (winner_amount <= 0 ||
+//         participants_amount <= 0) {
+//         eosio_assert(false, "bug?");
+//     }
+
+//     // to winner
+//     inner_transfer(get_self(), winner.user, winner_amount);
+//     // to dividend pool
+//     inner_transfer(get_self(), dividend_account, dividend_pool_amount);
+//     // to our platform
+//     inner_transfer(get_self(), platform, platform_amount);
+//     // to all participants, for fun
+//     for (auto part : participants) {
+//         inner_transfer(get_self(), part.user, participants_amount);
+//     }
+// }
 void dice::distribute(const game& _game,
-                      const users& winner,
-                      std::vector<users> participants) {
+                      const eosio::name& winner,
+                      // std::vector<users> participants,
+                      std::vector<eosio::name> participants,
+                      const uint64_t awards) {
     // winner gets WINNER_PERCENTS
     // PARTICIPANTS get PARTICPANTS PERCENTS
     // DONE: reach a goal, we distribute token to all participants, just for fun.
-    const int64_t awards = _game.awards;
+    // const int64_t awards = _game.awards;
+    desc_game_awards(_game, awards);
+    desc_game_shadow_awards(_game, awards);
+
     int64_t winner_amount = awards * WINNER_PERCENT;
     int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
     int64_t platform_amount = awards * PLATFORM_PERCENT;
@@ -586,19 +673,16 @@ void dice::distribute(const game& _game,
     }
 
     // to winner
-    inner_transfer(get_self(), winner.user, winner_amount);
+    inner_transfer(get_self(), winner, winner_amount);
     // to dividend pool
     inner_transfer(get_self(), dividend_account, dividend_pool_amount);
     // to our platform
     inner_transfer(get_self(), platform, platform_amount);
     // to all participants, for fun
     for (auto part : participants) {
-        inner_transfer(get_self(), part.user, participants_amount);
+        // inner_transfer(get_self(), part.user, participants_amount);
+        inner_transfer(get_self(), part, participants_amount);
     }
-
-    desc_game_awards(_game, awards);
-    desc_game_shadow_awards(_game, awards);
-
 }
 
 void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
