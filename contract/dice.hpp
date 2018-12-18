@@ -147,6 +147,12 @@ private:
         uint64_t primary_key() const {
             return uuid;
         }
+        uint64_t by_awards() const {
+            return awards;
+        }
+        uint64_t by_shadow_awards() const {
+            return shadow_awards;
+        }
         void debug() const {
             eosio::print(">| ");
             eosio::print("uuid:", uuid, ", ");
@@ -178,10 +184,18 @@ private:
         uint64_t primary_key() const {
             return uuid;
         }
-        uint64_t by_gameuuid () const {
+        // uint64_t by_gameuuid () const {
+        //     return gameuuid;
+        // }
+        // uint64_t by_update_ts() const {
+        //     return (uint64_t)update_ts;
+        // }
+        uint64_t get_secondary_1() const { // gameuuid
             return gameuuid;
         }
-
+        uint64_t get_secondary_2() const { // update_ts
+            return (uint64_t)update_ts;
+        }
         void debug() const {
             eosio::print(">| ");
             eosio::print("uuid: ", uuid, ", ");
@@ -193,6 +207,7 @@ private:
             eosio::print("update timestamp: ", update_ts, ", ");
             eosio::print(" |");
         }
+        EOSLIB_SERIALIZE(users, (uuid)(gameuuid)(update_ts));
     };
 
     TABLE hero {
@@ -209,6 +224,26 @@ private:
         uint64_t primary_key() const {
             return uuid;
         }
+
+        uint64_t get_secondary_1() const { // gameuuid
+            return gameuuid;
+        }
+        uint64_t get_secondary_2() const { // awards
+            return (uint64_t)awards;
+        }
+
+        // uint64_t by_gameuuid() const {
+        //     return gameuuid;
+        // }
+        // uint64_t by_awards() const {
+        //     return (uint64_t)awards;
+        // }
+        uint64_t get_secondary_3() const { // acc_awards
+            return (uint64_t)acc_awards;
+        }
+        uint64_t get_secondary_4() const { // update_ts
+            return update_ts;
+        }
         void debug() const {
             eosio::print(">| ");
             eosio::print("ts: ", ts, ", ");
@@ -219,6 +254,7 @@ private:
             eosio::print("acc_awards: ", acc_awards, ", ");
             eosio::print(" |");
         }
+        EOSLIB_SERIALIZE(hero, (uuid)(gameuuid)(awards)(acc_awards)(update_ts));
     };
 
 public:
@@ -230,13 +266,26 @@ public:
 
 private:
     typedef eosio::multi_index<"gametbl"_n, game> gametable;
+    // typedef eosio::multi_index<"gametbl"_n, game, eosio::indexed_by<"awards"_n, eosio::const_mem_fun<game, uint64_t, &game::by_gameuuid>>> gametable;
     gametable _games;
 
-    typedef eosio::multi_index<"waittbl"_n, users> usertable1;
-    typedef eosio::multi_index<"schedtbl"_n, users> usertable2;
+    typedef eosio::multi_index<"waittbl"_n, users,
+                               eosio::indexed_by<"gameuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_1>>,
+                               eosio::indexed_by<"updatets"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_2>>
+                               > usertable1;
+    typedef eosio::multi_index<"schedtbl"_n, users,
+                               eosio::indexed_by<"gameuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_1>>,
+                               eosio::indexed_by<"updatets"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_2>>
+                               > usertable2;
+    // typedef eosio::multi_index<"schedtbl"_n, users> usertable1;
+    // typedef eosio::multi_index<"schedtbl"_n, users> usertable2;
     usertable1 _waitingpool;
     usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
-    typedef eosio::multi_index<"herotbl"_n, hero> herotbl;
+    typedef eosio::multi_index<"herotbl"_n, hero,
+                               eosio::indexed_by<"gameuuid"_n, eosio::const_mem_fun<hero, uint64_t, &hero::get_secondary_1>>,
+                               eosio::indexed_by<"awards"_n, eosio::const_mem_fun<hero, uint64_t, &hero::get_secondary_2>>,
+                               eosio::indexed_by<"accawards"_n, eosio::const_mem_fun<hero, uint64_t, &hero::get_secondary_3>>
+                               > herotbl;
     typedef eosio::multi_index<"winnertbl"_n, hero> winnertbl;
     herotbl _heroes;
     winnertbl _winners;

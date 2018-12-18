@@ -4,7 +4,7 @@ $cleos push action cardgameacc clear '{}' -p cardgameacc -f
 echo "====================VERSION===================="
 $cleos push action cardgameacc version '{}' -p cardgameacc -f
 echo "====================add game===================="
-$cleos push action cardgameacc addgame '{"width": 23, "height": 23, "status": 1, "fee": 10000, "game_name": "test"}' -p cardgameacc -f
+$cleos push action cardgameacc addgame '{"width": 23, "height": 23, "status": 1, "fee": 10000, "gamename": "test"}' -p cardgameacc -f
 $cleos push action cardgameacc startgame '{"gameuuid": 0}' -p cardgameacc -f
 echo "====================debug===================="
 $cleos push action cardgameacc debug '{}' -p cardgameacc -f
@@ -59,4 +59,4 @@ $cleos push action cardgameacc debug '{}' -p cardgameacc -f
 # echo "====================intransefer===================="
 # $cleos push action cardgameacc intransfer '{"from": "cardgameacc", "to": "player1", "amount": 2}' -p cardgameacc -f
 
-$cleos push action cardgameacc sendtokens '{"gameuuid": 0, "user": "player1"}' -p cardgameacc -f
+# $cleos push action cardgameacc sendtokens '{"gameuuid": 0, "user": "player1"}' -p cardgameacc -f
