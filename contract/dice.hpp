@@ -26,6 +26,7 @@
  * TODO: generate goals randomly
  * DONE: seperate awards transaction and move transaction
  * DONE: show hero board
+ * TODO: help user buy cpu/ram/net
  */
 
 #define DEBUG 1
@@ -71,7 +72,8 @@ private:
     static constexpr uint32_t GAME_OVER = 4;
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    static constexpr uint32_t TIMEOUT_USERS = 120;
+    // static constexpr uint32_t TIMEOUT_USERS = 120;
+    static constexpr uint32_t TIMEOUT_USERS = 172800;
 
     struct point {
         uint32_t row;
@@ -196,7 +198,6 @@ private:
     TABLE hero {
         uint64_t uuid;
         uint64_t gameuuid;
-        // struct users _user;
         eosio::name user;
         int64_t awards;
         int64_t acc_awards;

@@ -1,7 +1,7 @@
 cleos=/opt/eosio/bin/cleos
 
 echo "====================CLEAR===================="
-$cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 clear '{}' -p arestest1234 -f
+# $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 clear '{}' -p arestest1234 -f
 echo "====================VERSION===================="
 $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 version '{}' -p arestest1234 -f
 echo "====================add game===================="
@@ -16,6 +16,14 @@ $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 startgame
 echo "====================debug===================="
 $cleos --url http://jungle2.cryptolions.io:80 push action arestest1234 debug '{}' -p arestest1234 -f
 echo "====================enter===================="
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+$cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest4321 arestest1234 "1 EOS" "gameuuid:0" -p arestest4321 -f
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest2134 arestest1234 "1 EOS" "gameuuid:0" -p arestest2134 -f
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest2143 arestest1234 "1 EOS" "gameuuid:0" -p arestest2143 -f
@@ -27,6 +35,7 @@ $cleos --url http://jungle2.cryptolions.io:80 transfer arestest2134 arestest1234
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest2143 arestest1234 "1 EOS" "gameuuid:0" -p arestest2143 -f
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest1324 arestest1234 "1 EOS" "gameuuid:0" -p arestest1324 -f
 $cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 arestest1234 "1 EOS" "gameuuid:0" -p qazwsxedc123 -f
+
 
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest4321 arestest1234 "1 EOS" "gameuuid:0" -p arestest4321 -f
 $cleos --url http://jungle2.cryptolions.io:80 transfer arestest2134 arestest1234 "1 EOS" "gameuuid:0" -p arestest2134 -f

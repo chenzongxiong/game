@@ -307,24 +307,62 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     require_auth(user);
 
     auto end = _scheduled_users.cend();
+
     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
-        if (_user->user == user &&
-            _user->gameuuid == gameuuid &&
-            _user->steps == 0) {
-            // deal a user enter multiple times
-            // if a scheduled user with steps nonzero
-            // means he was assigned last time
-            uint32_t dice_number = get_rnd_dice_number();
+        if (_user->gameuuid == gameuuid) { // in this game
+
+            if (_user->user == user && _user->steps == 0) { // this user doesn't toss yet
+                uint32_t dice_number = get_rnd_dice_number();
 #ifdef DEBUG
-            eosio::print("dice number: ", dice_number);
+                eosio::print("{");
+                eosio::print("dice_number: ", dice_number, ", ");
+                eosio::print("user: ", user, ", ");
+                eosio::print("gameuuid: ", gameuuid, ", ");
+                eosio::print("toss: ", true);
+                eosio::print("}");
+
 #endif
-            _scheduled_users.modify(_user, get_self(), [&](auto &u) {
-                                                           u.steps = dice_number;
-                                                           u.update_ts = now();
-                                                       });
-            break;
+                _scheduled_users.modify(_user, get_self(), [&](auto &u) {
+                                                               u.steps = dice_number;
+                                                               u.update_ts = now();
+                                                           });
+            } else {
+#ifdef DEBUG
+                eosio::print("{");
+                eosio::print("dice_number: ", _user->steps, ", ");
+                eosio::print("user: ", user, ", ");
+                eosio::print("gameuuid: ", gameuuid, ", ");
+                eosio::print("toss: ", false);
+                eosio::print("}");
+
+#endif
+            }
+            break;              // this game only executes once
         }
     }
+//     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
+//         if (_user->user == user &&
+//             _user->gameuuid == gameuuid &&
+//             _user->steps == 0) {
+//             // deal a user enter multiple times
+//             // if a scheduled user with steps nonzero
+//             // means he was assigned last time
+//             uint32_t dice_number = get_rnd_dice_number();
+// #ifdef DEBUG
+//             eosio::print("{");
+//             eosio::print("dice_number: ", dice_number, ", ");
+//             eosio::print("user: ", user, ", ");
+//             eosio::print("gameuuid: ", gameuuid);
+//             eosio::print("}");
+
+// #endif
+//             _scheduled_users.modify(_user, get_self(), [&](auto &u) {
+//                                                            u.steps = dice_number;
+//                                                            u.update_ts = now();
+//                                                        });
+//             break;
+//         }
+//     }
 }
 
 // action
