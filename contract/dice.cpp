@@ -316,8 +316,9 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
 #ifdef DEBUG
                 eosio::print("{");
                 eosio::print("dice_number: ", dice_number, ", ");
-                eosio::print("user: ", user, ", ");
+                eosio::print("user: \"", user, "\", ");
                 eosio::print("gameuuid: ", gameuuid, ", ");
+                eosio::print("update_ts: ", now(), ", ");
                 eosio::print("toss: ", true);
                 eosio::print("}");
 
@@ -330,8 +331,9 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
 #ifdef DEBUG
                 eosio::print("{");
                 eosio::print("dice_number: ", _user->steps, ", ");
-                eosio::print("user: ", user, ", ");
+                eosio::print("user: \"", user, "\", ");
                 eosio::print("gameuuid: ", gameuuid, ", ");
+                eosio::print("update_ts: ", now(), ", ");
                 eosio::print("toss: ", false);
                 eosio::print("}");
 
@@ -340,29 +342,7 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
             break;              // this game only executes once
         }
     }
-//     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
-//         if (_user->user == user &&
-//             _user->gameuuid == gameuuid &&
-//             _user->steps == 0) {
-//             // deal a user enter multiple times
-//             // if a scheduled user with steps nonzero
-//             // means he was assigned last time
-//             uint32_t dice_number = get_rnd_dice_number();
-// #ifdef DEBUG
-//             eosio::print("{");
-//             eosio::print("dice_number: ", dice_number, ", ");
-//             eosio::print("user: ", user, ", ");
-//             eosio::print("gameuuid: ", gameuuid);
-//             eosio::print("}");
 
-// #endif
-//             _scheduled_users.modify(_user, get_self(), [&](auto &u) {
-//                                                            u.steps = dice_number;
-//                                                            u.update_ts = now();
-//                                                        });
-//             break;
-//         }
-//     }
 }
 
 // action
@@ -500,18 +480,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
 #ifdef DEBUG
         eosio::print("user: ", user, " won.");
 #endif
-        // std::vector<users> participants;
-        // for (auto _u : _waitingpool) {
-        //     participants.push_back(_u);
-        // }
-        // for (auto _u : _scheduled_users) {
-        //     participants.push_back(_u);
-        // }
-        // TODO: put it in another function
-        // distribute(*_game,
-        //            *_user,
-        //            participants);
-        // update_heroes(_user, _game->awards);
         // add it to winner_table
         point pt = point(_game->pos);
         _winners.emplace(get_self(), [&](auto &w) {
@@ -530,6 +498,26 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         desc_game_shadow_awards(*_game, _game->awards);
         close_game(*_game);
 
+        eosio::print("{");
+        eosio::print("gameuuid: ", gameuuid, ", ");
+        eosio::print("user: \"", user, "\", ");
+        eosio::print("awards: ", _game->awards, ", ");
+        eosio::print("row: ", pt.row, ", ");
+        eosio::print("col: ", pt.col, ", ");
+        eosio::print("update_ts: ", now(), ", ");
+        eosio::print("win: ", true);
+        eosio::print("}");
+
+    } else {
+        eosio::print("{");
+        eosio::print("gameuuid: ", gameuuid, ", ");
+        eosio::print("user: \"", user, "\", ");
+        eosio::print("awards: ", _game->awards, ", ");
+        eosio::print("row: ", pt.row, ", ");
+        eosio::print("col: ", pt.col, ", ");
+        eosio::print("update_ts: ", now(), ", ");
+        eosio::print("win: ", false);
+        eosio::print("}");
     }
     // erase this user in scheduled_users table
     _scheduled_users.erase(_user);
