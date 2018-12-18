@@ -15,7 +15,7 @@
  *       - DONE: random initalize inital postion in a game
  * TODO: advoid overlapping of steps in map, verify in backend
  *    - features in next version
- * TODO: show waiting timestamp
+ * DONE: show waiting timestamp
  * DONE: validate route steps, total steps should be equal to dice number
  * DONE: security checking
  * https://www.bcskill.com/index.php/archives/516.html
@@ -24,7 +24,8 @@
  *    DONE: random number generator, use tapos block number and tapos block prefix
  * https://www.bcskill.com/index.php/archives/516.html
  * TODO: generate goals randomly
- *
+ * DONE: seperate awards transaction and move transaction
+ * DONE: show hero board
  */
 
 #define DEBUG 1
@@ -35,7 +36,8 @@ public:
     using contract::contract;
     dice( eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds ): eosio::contract(receiver, code, ds),
         _games(receiver, code.value), _waitingpool(receiver, code.value),
-        _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value)
+        _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value),
+        _heroes(receiver, code.value), _winners(receiver, code.value)
     {}
 private:
     struct game;
@@ -56,6 +58,10 @@ private:
     static constexpr float LAST_GOAL_PERCENT = 0.05;
     static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
 
+    // static constexpr eosio::name dividend_account = "arestest4321"_n;
+    // static constexpr eosio::name platform = "arestest1234"_n;
+    // static constexpr eosio::name lastgoal = "arestest1234"_n;
+
     static constexpr eosio::name dividend_account = "arestest4321"_n;
     static constexpr eosio::name platform = "arestest1234"_n;
     static constexpr eosio::name lastgoal = "arestest1234"_n;
@@ -65,7 +71,7 @@ private:
     static constexpr uint32_t GAME_OVER = 4;
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    static constexpr uint32_t TIMEOUT_USERS = 30;
+    static constexpr uint32_t TIMEOUT_USERS = 120;
 
     struct point {
         uint32_t row;
@@ -119,7 +125,7 @@ private:
         return true;
     }
 
-    void inner_transfer(eosio::name from, eosio::name to, int64_t amount);
+    void inner_transfer(eosio::name from, eosio::name to, int64_t amount, uint32_t seed);
 
     TABLE game {
 
@@ -133,6 +139,7 @@ private:
         int64_t awards;         // the number of tokens we will distribute
         int64_t shadow_awards;  // the number of tokens we collect in this game
         uint64_t total_number;  // total number of users enter this game
+        eosio::name gamename;
         std::vector<uint32_t> goals;
 
         uint64_t primary_key() const {
@@ -143,6 +150,8 @@ private:
             eosio::print("uuid:", uuid, ", ");
             eosio::print("board_width:", board_width, ", ");
             eosio::print("board_height:", board_height, ", ");
+            eosio::print("awards:", awards, ", ");
+            eosio::print("shadow_awards:", shadow_awards, ", ");
             eosio::print("pos:", pos, ", ");
             eosio::print("status: ", status, ", ");
             point pt = point(pos);
@@ -152,6 +161,7 @@ private:
                 eosio::print("goal ", i, ": ", "(", pt.row, ", ", pt.col, "), ");
             }
             eosio::print("total_number: ", total_number, ", ");
+            // eosio::print("gamename: ", gamename.c_str(), ", ");
             eosio::print(" |");
         }
     };
@@ -161,7 +171,6 @@ private:
         uint32_t steps;
         uint128_t no;           // avoid overflow
         eosio::name user;
-        // eosio::block_timestamp ts;
         time_t ts;
         time_t update_ts;
         uint64_t primary_key() const {
@@ -184,6 +193,33 @@ private:
         }
     };
 
+    TABLE hero {
+        uint64_t uuid;
+        uint64_t gameuuid;
+        // struct users _user;
+        eosio::name user;
+        int64_t awards;
+        int64_t acc_awards;
+        uint32_t row;
+        uint32_t col;
+        time_t ts;
+        time_t update_ts;
+
+        uint64_t primary_key() const {
+            return uuid;
+        }
+        void debug() const {
+            eosio::print(">| ");
+            eosio::print("ts: ", ts, ", ");
+            eosio::print("update_ts: ", update_ts, ", ");
+            eosio::print("user: ", user, ", ");
+            eosio::print("gameuuid: ", gameuuid, ", ");
+            eosio::print("awards: ", awards, ", ");
+            eosio::print("acc_awards: ", acc_awards, ", ");
+            eosio::print(" |");
+        }
+    };
+
 public:
 
 #ifdef DEBUG
@@ -199,9 +235,36 @@ private:
     typedef eosio::multi_index<"schedtbl"_n, users> usertable2;
     usertable1 _waitingpool;
     usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
+    typedef eosio::multi_index<"herotbl"_n, hero> herotbl;
+    typedef eosio::multi_index<"winnertbl"_n, hero> winnertbl;
+    herotbl _heroes;
+    winnertbl _winners;
+    // void update_heroes(struct users _user, int64_t awards) {
+    void update_heroes(eosio::name user, uint64_t awards) {
+        eosio::print("update heroes");
+        auto h_it = _heroes.find(user.value);
+        if (h_it == _heroes.cend()) {
+            _heroes.emplace(get_self(), [&](auto &h) {
+                                            h.uuid = user.value;
+                                            h.user = user;
+                                            h.awards = awards;
+                                            h.acc_awards = awards;
+                                            h.ts = now();
+                                            h.update_ts = now();
+                                        });
+        } else {
+            _heroes.modify(h_it, get_self(), [&](auto &h) {
+                                                 h.awards = awards;
+                                                 h.acc_awards += awards;
+                                                 h.update_ts = now();
+                                             });
+        }
+    }
+
 public:
     // usertable latest_scheduled_users; // the users in this vector are scheduled just now
-    [[eosio::action]] void addgame(uint32_t width, uint32_t height, uint32_t status, int64_t fee);
+    [[eosio::action]] void addgame(eosio::name gamename, uint32_t width,
+                                   uint32_t height, uint32_t status, int64_t fee);
 #ifdef DEBUG
     [[eosio::action]] void clear();
 #endif
@@ -216,6 +279,7 @@ public:
 
     [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid, uint32_t seed);
     [[eosio::action]] void move(eosio::name user, uint64_t gameuuid, uint64_t steps);
+    [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
     // [[eosio::action]] void getusers() const; // extract latest scheduled users information, users to toss dices
     // [[eosio::action]] void getawards();    // get current awards
     // [[eosio::action]] void getshaawards(); // get shadow awards
@@ -247,6 +311,7 @@ private:
                                              g.pos = pt.to_pos();
                                          });
     }
+
     auto is_sched_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
 
         auto end = _scheduled_users.cend();
@@ -258,10 +323,22 @@ private:
         }
         return end;
     }
+    auto is_won_user_in_game(const eosio::name &user, const uint64_t gameuuid) {
+        auto cend = _winners.cend();
+        for (auto _winner = _winners.cbegin(); _winner != cend; _winner ++) {
+            if (_winner->user == user &&
+                _winner->gameuuid == gameuuid) {
+                return _winner;
+            }
+        }
+        return cend;
+    }
     // 1. check game status, over or continue, close, start,
     // 2. distribute tokens
     bool reach_goal(const game &_game);
-    void distribute(const game& _game, const users& winner, std::vector<users> participants);
+    // void distribute(const game& _game, const users& winner, std::vector<users> participants, uint64_t awards);
+    // void distribute(const game& _game, const eosio::name& winner, std::vector<users> participants, uint64_t awards);
+    void distribute(const game& _game, const eosio::name& winner, std::vector<eosio::name> participants, uint64_t awards);
     void close_game(const game &_game) {
         for (auto _goal : _game.goals) {
             if (_goal != DELETED_GOAL) {

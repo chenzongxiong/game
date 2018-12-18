@@ -62,10 +62,20 @@ void dice::debug() {
     for (auto &_rng : _rngtbl) {
         _rng.debug();
     }
+
+    eosio::print(">>>>>>>>>>>>>>>>>>>>winner table>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_winner : _winners) {
+        _winner.debug();
+    }
+    eosio::print(">>>>>>>>>>>>>>>>>>>>heroes table>>>>>>>>>>>>>>>>>>>>");
+    for (auto &_h : _heroes) {
+        _h.debug();
+    }
+
 }
 #endif
 // action
-void dice::addgame(std::string game_name, uint32_t width,
+void dice::addgame(eosio::name gamename, uint32_t width,
                    uint32_t height, uint32_t status, int64_t fee) {
 
     require_auth(get_self());
@@ -75,7 +85,7 @@ void dice::addgame(std::string game_name, uint32_t width,
     eosio_assert(MAXSIZE > height, "height > MAXSIZE, invalid");
     eosio_assert(status == GAME_CLOSE || status == GAME_START,
                  "invalid status");
-
+    eosio::print("successfully add a new game");
     pcg32_srandom_r(now(), initseq);
     // 1. randomly pick a point as initalized points
     uint32_t idx = pcg32_boundedrand_r(centroids.size());
@@ -89,7 +99,7 @@ void dice::addgame(std::string game_name, uint32_t width,
         }
         goals.push_back(centroids[i].to_pos());
     }
-
+    eosio::print("successfully add a new game");
     _games.emplace(get_self(), [&](auto &g) {
                                    g.uuid = _games.available_primary_key();
                                    g.pos = pos;
@@ -101,7 +111,8 @@ void dice::addgame(std::string game_name, uint32_t width,
                                    g.awards = 0;
                                    g.shadow_awards = 0;
                                    g.total_number = 0;
-                                   g.game_name = game_name;
+                                   g.gamename = gamename;
+                                   // g.gamename.assign(gamename);
                                    for (auto _gl : goals) {
                                        g.goals.push_back(_gl);
                                    }
@@ -143,6 +154,7 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
             sched_user_it ++;
         }
     }
+
     // multiple user in multiple games
     // how many people in game gameuuid
     std::vector<users> latest_scheduling_users;
@@ -178,6 +190,7 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
         // TODO: primary key of users in waitingpool can be overlapping
         _scheduled_users.emplace(get_self(), [&](auto &u) {
                                                  // u.uuid = _user.uuid; // make user every user only scheduled once
+                                                 u.uuid = _scheduled_users.available_primary_key();
                                                  u.gameuuid = _user.gameuuid;
                                                  u.steps = _user.steps;
                                                  u.no = _scheduled_users.available_primary_key();
@@ -192,12 +205,12 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
 
         i ++;
     }
-#ifdef DEBUG
-    eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-    for (auto &_user : _scheduled_users) {
-        _user.debug();
-    }
-#endif
+// #ifdef DEBUG
+//     eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
+//     for (auto &_user : _scheduled_users) {
+//         _user.debug();
+//     }
+// #endif
 }
 
 // action
@@ -220,6 +233,15 @@ void dice::clear() {
         it3 = _scheduled_users.erase(it3);
     }
 
+    auto it4 = _heroes.begin();
+    while (it4 != _heroes.end()) {
+        it4 = _heroes.erase(it4);
+    }
+
+    auto it5 = _winners.begin();
+    while (it5 != _winners.end()) {
+        it5 = _winners.erase(it5);
+    }
 }
 #endif
 /********************************************************************************
@@ -453,6 +475,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         //            participants);
         // update_heroes(_user, _game->awards);
         // add it to winner_table
+        point pt = point(_game->pos);
         _winners.emplace(get_self(), [&](auto &w) {
                                          w.uuid = _winners.available_primary_key();
                                          // w._user = _user;
@@ -461,10 +484,12 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                          w.ts = now();
                                          w.update_ts = now();
                                          w.awards = _game->awards;
+                                         w.row = pt.row;
+                                         w.col = pt.col;
                                          w.acc_awards = 0;
                                    });
-
-
+        desc_game_awards(*_game, _game->awards);
+        desc_game_shadow_awards(*_game, _game->awards);
         close_game(*_game);
 
     }
@@ -476,14 +501,13 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
 }
 
 void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
-    require_auth(user);
+    require_auth(get_self());
 
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "not found game");
 
     auto _winner = is_won_user_in_game(user, gameuuid);
     eosio_assert(_winner != _winners.cend(), "winner not in game");
-    // auto user = _winner->user;
 
     std::vector<eosio::name> participants;
 
@@ -493,17 +517,15 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
     for (auto _u : _scheduled_users) {
         participants.push_back(_u.user);
     }
-    // distribute(*_game,
-    //            *_user,
-    //            participants,
-    //            _winner->awards);
+
+    eosio::print("distribute tokens");
     distribute(*_game,
                user,
                participants,
                _winner->awards);
-
-
-    update_heroes(user, _game->awards);
+    uint64_t real_awards = _winner->awards*WINNER_PERCENT;
+    update_heroes(user, real_awards);
+    _winners.erase(_winner);
 }
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
@@ -657,8 +679,6 @@ void dice::distribute(const game& _game,
     // PARTICIPANTS get PARTICPANTS PERCENTS
     // DONE: reach a goal, we distribute token to all participants, just for fun.
     // const int64_t awards = _game.awards;
-    desc_game_awards(_game, awards);
-    desc_game_shadow_awards(_game, awards);
 
     int64_t winner_amount = awards * WINNER_PERCENT;
     int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
@@ -671,21 +691,24 @@ void dice::distribute(const game& _game,
         participants_amount <= 0) {
         eosio_assert(false, "bug?");
     }
-
+    uint32_t seed = 0;
     // to winner
-    inner_transfer(get_self(), winner, winner_amount);
+    inner_transfer(get_self(), winner, winner_amount, seed);
     // to dividend pool
-    inner_transfer(get_self(), dividend_account, dividend_pool_amount);
+    seed ++;
+    inner_transfer(get_self(), dividend_account, dividend_pool_amount, seed);
     // to our platform
-    inner_transfer(get_self(), platform, platform_amount);
+    seed ++;
+    inner_transfer(get_self(), platform, platform_amount, seed);
     // to all participants, for fun
-    for (auto part : participants) {
-        // inner_transfer(get_self(), part.user, participants_amount);
-        inner_transfer(get_self(), part, participants_amount);
-    }
+    // for (auto part : participants) {
+    //     // inner_transfer(get_self(), part.user, participants_amount);
+    //     ++ seed;
+    //     inner_transfer(get_self(), part, participants_amount, seed);
+    // }
 }
 
-void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
+void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, uint32_t seed) {
     // DONE: verify inner_transfer action again and again
     // NOTE: cleos set account permission your_account active '{"threshold": 1,"keys": [{"key": "EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4","weight": 1}],"accounts": [{"permission":{"actor":"your_contract","permission":"eosio.code"},"weight":1}]}' owner -p your_account
 
@@ -700,11 +723,13 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
         "eosio.token"_n, "transfer"_n,
         std::make_tuple(from, to, quantity, std::string(""))
         );
-    // delay 5 seconds
-    txn.delay_sec = 5;
-    uint128_t id = 0x0 | from.value;
+    // delay 1 seconds
+    txn.delay_sec = 1;
+    uint128_t id = 0x0 | to.value;
     id <<= 64;
-    id |= from.value;
+    id |= (from.value & 0xffffffff00000000);
+    id |= (seed & 0xffffffff);
+
     txn.send(id, from, false);
 
 }
@@ -750,4 +775,5 @@ EOSIO_DISPATCH2(dice,
                 (schedusers)
                 (move)
                 (toss)
+                (sendtokens)
     )
