@@ -214,32 +214,40 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
 
 // action
 #ifdef DEBUG
-void dice::clear() {
+void dice::clear(std::string tbl) {
     require_auth(get_self());
     // clear gametable
-    auto it1 = _games.begin();
-    while (it1 != _games.end()) {
-        it1 = _games.erase(it1);
+    if (tbl == "gametbl") {
+        auto it1 = _games.begin();
+        while (it1 != _games.end()) {
+            it1 = _games.erase(it1);
+        }
     }
     // clear waitingpool
-    auto it2 = _waitingpool.begin();
-    while (it2 != _waitingpool.end()) {
-        it2 = _waitingpool.erase(it2);
+    if (tbl == "waittbl") {
+        auto it2 = _waitingpool.begin();
+        while (it2 != _waitingpool.end()) {
+            it2 = _waitingpool.erase(it2);
+        }
     }
     // clear schedued users
-    auto it3 = _scheduled_users.begin();
-    while (it3 != _scheduled_users.end()) {
-        it3 = _scheduled_users.erase(it3);
+    if (tbl == "schedtbl") {
+        auto it3 = _scheduled_users.begin();
+        while (it3 != _scheduled_users.end()) {
+            it3 = _scheduled_users.erase(it3);
+        }
     }
-
-    auto it4 = _heroes.begin();
-    while (it4 != _heroes.end()) {
-        it4 = _heroes.erase(it4);
+    if (tbl == "herotbl") {
+        auto it4 = _heroes.begin();
+        while (it4 != _heroes.end()) {
+            it4 = _heroes.erase(it4);
+        }
     }
-
-    auto it5 = _winners.begin();
-    while (it5 != _winners.end()) {
-        it5 = _winners.erase(it5);
+    if (tbl == "winnertbl") {
+        auto it5 = _winners.begin();
+        while (it5 != _winners.end()) {
+            it5 = _winners.erase(it5);
+        }
     }
 }
 #endif
@@ -324,6 +332,45 @@ void dice::sched(eosio::name user, uint64_t gameuuid, time_t ts) {
                                              u.ts = ts;
                                              u.update_ts = now();
                                          });
+}
+
+void dice::resetremove() {
+    require_auth(admin);
+    auto cfg = _config.get();
+    cfg.stop_remove_sched = false;
+    _config.set(cfg, admin);
+}
+void dice::setremove() {
+    require_auth(admin);
+    auto cfg = _config.get();
+    cfg.stop_remove_sched = true;
+    _config.set(cfg, admin);
+}
+
+void dice::removesched() {
+    require_auth(admin);
+    auto cfg = _config.get();
+    if (cfg.stop_remove_sched) {
+        auto sched_user_it = _scheduled_users.begin();
+        while (sched_user_it != _scheduled_users.end()) {
+            if ((now() - sched_user_it->update_ts) > TIMEOUT_USERS) {
+                sched_user_it = _scheduled_users.erase(sched_user_it);
+            } else {
+                sched_user_it ++;
+            }
+        }
+        // remove time-out users every 10 seconds
+        eosio::transaction txn {};
+        txn.actions.emplace_back(
+            eosio::permission_level{admin, "active"_n},
+            get_self(), "checksched"_n,
+            std::make_tuple()
+            );
+
+        uint32_t delayed = 10;
+        txn.delay_sec = delayed;
+        txn.send(now(), admin, false);
+    }
 }
 
 // action
@@ -705,14 +752,11 @@ bool dice::reach_goal(const game &_game) {
 
 void dice::distribute(const game& _game,
                       const eosio::name& winner,
-                      // std::vector<users> participants,
                       std::vector<eosio::name> participants,
                       const uint64_t awards) {
     // winner gets WINNER_PERCENTS
     // PARTICIPANTS get PARTICPANTS PERCENTS
     // DONE: reach a goal, we distribute token to all participants, just for fun.
-    // const int64_t awards = _game.awards;
-
     int64_t winner_amount = awards * WINNER_PERCENT;
     int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
     int64_t platform_amount = awards * PLATFORM_PERCENT;
@@ -830,4 +874,7 @@ EOSIO_DISPATCH2(dice,
                 (toss)
                 (sendtokens)
                 (sched)
+                (removesched)
+                (setremove)
+                (resetremove)
     )

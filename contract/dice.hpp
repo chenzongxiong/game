@@ -2,7 +2,7 @@
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/time.hpp>
 #include <eosiolib/transaction.hpp>
-
+#include <eosiolib/singleton.hpp>
 #include <boost/algorithm/string.hpp>
 
 /* DOING:
@@ -30,7 +30,8 @@
  * TODO: random function review
  * TODO: test multiple actions per transaction
  * TODO: generate random number
- * DONE: efficiently schedule
+ * DONE: efficiently schedule, via defered transaction
+ * TODO: how to deal with left users if a game is closed ?
  */
 
 
@@ -43,7 +44,8 @@ public:
     dice( eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds ): eosio::contract(receiver, code, ds),
         _games(receiver, code.value), _waitingpool(receiver, code.value),
         _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value),
-        _heroes(receiver, code.value), _winners(receiver, code.value)
+        _heroes(receiver, code.value), _winners(receiver, code.value),
+        _config(receiver, code.value)
     {}
 private:
     struct game;
@@ -64,6 +66,7 @@ private:
     static constexpr eosio::name dividend_account = "arestest4321"_n;
     static constexpr eosio::name platform = "arestest1234"_n;
     static constexpr eosio::name lastgoal = "arestest1234"_n;
+    static constexpr eosio::name admin = "arestest1234"_n;
 
     static constexpr uint32_t GAME_CLOSE = 1;
     static constexpr uint32_t GAME_START = 2;
@@ -247,6 +250,14 @@ private:
             eosio::print(" |");
         }
     };
+    struct config {
+        // uint64_t id;
+
+        uint32_t stop_remove_sched;
+        // uint64_t primary_key() const {
+        //     return id;
+        // }
+    };
 
 public:
 
@@ -256,6 +267,9 @@ public:
 #endif
 
 private:
+    typedef eosio::singleton<"config"_n, config> config_singleton;
+    config_singleton _config;
+
     typedef eosio::multi_index<"gametbl"_n, game> gametable;
     gametable _games;
 
@@ -308,7 +322,7 @@ public:
     [[eosio::action]] void addgame(eosio::name gamename, uint32_t width,
                                    uint32_t height, uint32_t status, int64_t fee);
 #ifdef DEBUG
-    [[eosio::action]] void clear();
+    [[eosio::action]] void clear(std::string tbl);
 #endif
     [[eosio::action]] void startgame(uint64_t gameuuid);
     [[eosio::action]] void closegame(uint64_t gameuuid);
@@ -319,16 +333,17 @@ public:
     // call it from offchain every 100 ms/1 s
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
     [[eosio::action]] void sched(eosio::name user, uint64_t gameuuid, time_t ts);
+    [[eosio::action]] void setremove();
+    [[eosio::action]] void resetremove();
+
+    [[eosio::action]] void removesched();
 
     [[eosio::action]] void toss(eosio::name user, uint64_t gameuuid, uint32_t seed);
     [[eosio::action]] void move(eosio::name user, uint64_t gameuuid, uint64_t steps);
     [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
 
-    // [[eosio::action]] void delayid(uint128_t id);
     [[eosio::action]] void delayid(eosio::name user);
-    // [[eosio::action]] void delayid();
 
-    // [[eosio::action]] void getrnd(users _user);
 
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
