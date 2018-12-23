@@ -23,7 +23,6 @@ void dice::debug() {
     require_auth(get_self());
     eosio::print(">>>>>>>>>>>>>>>>>>>>SEED>>>>>>>>>>>>>>>>>>>>");
     eosio::print("now: ", now(), ", ");
-    // auto info = get_info();
     uint32_t block_num = tapos_block_num();
     uint32_t block_prefix = tapos_block_prefix();
 
@@ -282,6 +281,20 @@ void dice::enter(eosio::name user) {
                                                  u.ts = now();
                                                  u.update_ts = now();
                                              });
+
+            eosio::transaction txn {};
+            txn.actions.emplace_back(
+                eosio::permission_level{_self, "active"_n},
+                get_self(), "sched"_n,
+                std::make_tuple(data.from, gameuuid, now())
+                );
+
+            // NOTE: delay x (1 - 30) seconds, to avoid one man controls too many accounts
+            pcg32_srandom_r(now(), now());
+            uint32_t delayed = pcg32_boundedrand_r(30) + 1;
+            txn.delay_sec = delayed;
+            txn.send(now(), _self, false);
+
             _games.modify(_game, get_self(), [&](auto &g) {
                                                  g.total_number ++;
                                              });
@@ -297,6 +310,22 @@ void dice::enter(eosio::name user) {
     eosio::print("call enter successfully");
 #endif
 }
+void dice::sched(eosio::name user, uint64_t gameuuid, time_t ts) {
+    auto _game = get_game_by_uuid(gameuuid);
+    eosio_assert(_game != _games.cend(), "bug ? game not found.");
+    eosio_assert(_game->status == GAME_START, "bug ? game does not start");
+
+    _scheduled_users.emplace(get_self(), [&](auto &u) {
+                                             u.uuid = _scheduled_users.available_primary_key();
+                                             u.gameuuid = gameuuid;
+                                             u.steps = 0;
+                                             u.no = _scheduled_users.available_primary_key();
+                                             u.user = user;
+                                             u.ts = ts;
+                                             u.update_ts = now();
+                                         });
+}
+
 // action
 void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     // 1. user authentication
@@ -312,6 +341,17 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
         if (_user->gameuuid == gameuuid) { // in this game
 
             if (_user->user == user && _user->steps == 0) { // this user doesn't toss yet
+
+                eosio::transaction txn {};
+                txn.actions.emplace_back(
+                    eosio::permission_level{user, "active"_n},
+                    get_self(), "getrnd"_n,
+                    std::make_tuple()
+                    );
+                // delay 10 seconds
+                txn.delay_sec = 5;
+                txn.send(now(), user, false);
+
                 uint32_t dice_number = get_rnd_dice_number();
 #ifdef DEBUG
                 eosio::print("{");
@@ -553,6 +593,7 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
     update_heroes(user, real_awards);
     _winners.erase(_winner);
 }
+
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
@@ -726,6 +767,25 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, uint
 
 }
 
+void dice::delayid(eosio::name user) {
+
+    uint64_t block_num = (uint64_t)tapos_block_num();
+    uint64_t block_prefix = (uint64_t)tapos_block_prefix();
+    eosio::print("delayed block number:", block_num, ", ");
+    eosio::print("delayed block_prefix: ", block_prefix, ", ");
+    // eosio::print("delayed Hello %", id);
+    eosio::transaction txn {};
+    txn.actions.emplace_back(
+        eosio::permission_level{_self, "active"_n},
+        get_self(), "delayid"_n,
+        std::make_tuple(get_self())
+        );
+
+    // delay 10 seconds
+    txn.delay_sec = 5;
+    txn.send(now(), _self, false);
+}
+
 
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
@@ -761,6 +821,7 @@ EOSIO_DISPATCH2(dice,
                 (version)
                 (debug)
                 (clear)
+                (delayid)
 #endif
                 (addgame)
                 (startgame)
@@ -768,4 +829,5 @@ EOSIO_DISPATCH2(dice,
                 (move)
                 (toss)
                 (sendtokens)
+                (sched)
     )
