@@ -20,7 +20,7 @@ void dice::version() {
  ********************************************************************************/
 // action
 void dice::debug() {
-    require_auth(get_self());
+    require_auth(admin);
     eosio::print(">>>>>>>>>>>>>>>>>>>>SEED>>>>>>>>>>>>>>>>>>>>");
     eosio::print("now: ", now(), ", ");
     uint32_t block_num = tapos_block_num();
@@ -77,7 +77,7 @@ void dice::debug() {
 void dice::addgame(eosio::name gamename, uint32_t width,
                    uint32_t height, uint32_t status, int64_t fee) {
 
-    require_auth(get_self());
+    require_auth(admin);;
 
     eosio_assert(fee > 0, "fee < 0");
     eosio_assert(MAXSIZE > width, "width > MAXSIZE, invalid");
@@ -123,7 +123,7 @@ void dice::addgame(eosio::name gamename, uint32_t width,
 }
 // action
 void dice::startgame(uint64_t gameuuid) {
-    require_auth(get_self());
+    require_auth(admin);;
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "game not found");
 
@@ -140,7 +140,7 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
     // 4. put them into scheduling users vector
     // 5. erase them from waitingpool
 
-    require_auth(get_self());
+    require_auth(admin);;
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "bug ? game not found.");
     eosio_assert(_game->status == GAME_START, "bug ? game does not start");
@@ -215,7 +215,7 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
 // action
 #ifdef DEBUG
 void dice::clear(std::string tbl) {
-    require_auth(get_self());
+    require_auth(admin);;
     // clear gametable
     if (tbl == "gametbl") {
         auto it1 = _games.begin();
@@ -614,7 +614,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
 }
 
 void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
-    require_auth(get_self());
+    require_auth(admin);;
 
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "not found game");

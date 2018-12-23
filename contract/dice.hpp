@@ -66,7 +66,7 @@ private:
     static constexpr eosio::name dividend_account = "arestest4321"_n;
     static constexpr eosio::name platform = "arestest1234"_n;
     static constexpr eosio::name lastgoal = "arestest1234"_n;
-    static constexpr eosio::name admin = "arestest1234"_n;
+    static constexpr eosio::name admin = "player1"_n;
 
     static constexpr uint32_t GAME_CLOSE = 1;
     static constexpr uint32_t GAME_START = 2;
