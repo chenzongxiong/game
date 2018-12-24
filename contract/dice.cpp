@@ -70,7 +70,11 @@ void dice::debug() {
     for (auto &_h : _heroes) {
         _h.debug();
     }
-
+    eosio::print(">>>>>>>>>>>>>>>>>>>>>> config >>>>>>>>>>>>>>>>>>>>>>>");
+    if (_config.exists()) {
+        auto cfg = _config.get();
+        cfg.debug();
+    }
 }
 #endif
 // action
@@ -215,7 +219,7 @@ void dice::schedusers(uint64_t gameuuid, uint32_t total) {
 // action
 #ifdef DEBUG
 void dice::clear(std::string tbl) {
-    require_auth(admin);;
+    require_auth(admin);
     // clear gametable
     if (tbl == "gametbl") {
         auto it1 = _games.begin();
@@ -289,19 +293,21 @@ void dice::enter(eosio::name user) {
                                                  u.ts = now();
                                                  u.update_ts = now();
                                              });
-
+            // xxxx
             eosio::transaction txn {};
             txn.actions.emplace_back(
                 eosio::permission_level{_self, "active"_n},
-                get_self(), "sched"_n,
+                get_self(), "schedhelper"_n,
                 std::make_tuple(data.from, gameuuid, now())
                 );
 
             // NOTE: delay x (1 - 30) seconds, to avoid one man controls too many accounts
-            pcg32_srandom_r(now(), now());
-            uint32_t delayed = pcg32_boundedrand_r(30) + 1;
+            // pcg32_srandom_r(now(), now());
+            // uint32_t delayed = pcg32_boundedrand_r(30) + 1;
+            uint32_t delayed = 3;
             txn.delay_sec = delayed;
-            txn.send(now(), _self, false);
+            // txn.send(now(), _self, false);
+            txn.send(next_sender_id(), get_self(), false);
 
             _games.modify(_game, get_self(), [&](auto &g) {
                                                  g.total_number ++;
@@ -318,6 +324,27 @@ void dice::enter(eosio::name user) {
     eosio::print("call enter successfully");
 #endif
 }
+void dice::schedhelper(eosio::name user, uint64_t gameuuid, time_t ts) {
+    uint32_t block_num = tapos_block_num();
+    uint32_t block_prefix = tapos_block_prefix();
+
+    eosio::print("block number: ", block_num, ", ");
+    eosio::print("block prefix: ", block_prefix, ", ");
+
+    eosio::transaction txn {};
+    txn.actions.emplace_back(
+        eosio::permission_level{_self, "active"_n},
+        get_self(), "sched"_n,
+        std::make_tuple(user, gameuuid, now())
+        );
+
+    // NOTE: delay x (1 - 30) seconds, to avoid one man controls too many accounts
+    pcg32_srandom_r(now(), now());
+    uint32_t delayed = pcg32_boundedrand_r(30) + 1;
+    txn.delay_sec = delayed;
+    txn.send(next_sender_id(), get_self(), false);
+}
+
 void dice::sched(eosio::name user, uint64_t gameuuid, time_t ts) {
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "bug ? game not found.");
@@ -332,25 +359,41 @@ void dice::sched(eosio::name user, uint64_t gameuuid, time_t ts) {
                                              u.ts = ts;
                                              u.update_ts = now();
                                          });
+    // TODO: erase timeout users
+
 }
 
 void dice::resetremove() {
     require_auth(admin);
-    auto cfg = _config.get();
-    cfg.stop_remove_sched = false;
-    _config.set(cfg, admin);
+    if (_config.exists()) {
+        auto cfg = _config.get();
+        cfg.stop_remove_sched = false;
+        _config.set(cfg, admin);
+    } else {
+        struct st_config cfg = {};
+        cfg.stop_remove_sched = false;
+        _config.get_or_create(admin, cfg);
+    }
 }
 void dice::setremove() {
     require_auth(admin);
-    auto cfg = _config.get();
-    cfg.stop_remove_sched = true;
-    _config.set(cfg, admin);
+
+    if (_config.exists()) {
+        auto cfg = _config.get();
+        cfg.stop_remove_sched = true;
+        _config.set(cfg, admin);
+    } else {
+        struct st_config cfg = {};
+        cfg.stop_remove_sched = true;
+        _config.get_or_create(admin, cfg);
+    }
 }
 
 void dice::removesched() {
     require_auth(admin);
     auto cfg = _config.get();
     if (cfg.stop_remove_sched) {
+        eosio::print("run remove schedued users");
         auto sched_user_it = _scheduled_users.begin();
         while (sched_user_it != _scheduled_users.end()) {
             if ((now() - sched_user_it->update_ts) > TIMEOUT_USERS) {
@@ -363,13 +406,15 @@ void dice::removesched() {
         eosio::transaction txn {};
         txn.actions.emplace_back(
             eosio::permission_level{admin, "active"_n},
-            get_self(), "checksched"_n,
+            get_self(), "removesched"_n,
             std::make_tuple()
             );
 
         uint32_t delayed = 10;
         txn.delay_sec = delayed;
         txn.send(now(), admin, false);
+    } else {
+        eosio::print("stop remove schedued users");
     }
 }
 
@@ -808,10 +853,9 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, uint
     id |= (seed & 0xffffffff);
 
     txn.send(id, from, false);
-
 }
 
-void dice::delayid(eosio::name user) {
+void dice::delayid(eosio::name user, uint32_t amount) {
 
     uint64_t block_num = (uint64_t)tapos_block_num();
     uint64_t block_prefix = (uint64_t)tapos_block_prefix();
@@ -819,14 +863,25 @@ void dice::delayid(eosio::name user) {
     eosio::print("delayed block_prefix: ", block_prefix, ", ");
     // eosio::print("delayed Hello %", id);
     eosio::transaction txn {};
-    txn.actions.emplace_back(
-        eosio::permission_level{_self, "active"_n},
-        get_self(), "delayid"_n,
-        std::make_tuple(get_self())
-        );
+    eosio::action atx = {eosio::permission_level{_self, "active"_n},
+                         get_self(), "delayid"_n,
+                         std::make_tuple(get_self(), amount)};
+    for (uint32_t i = 0; i < amount; i ++) {
+        txn.actions.push_back(atx);
+    }
 
-    // delay 10 seconds
+    // txn.actions.emplace_back(
+    //     eosio::permission_level{_self, "active"_n},
+    //     get_self(), "delayid"_n,
+    //     std::make_tuple(get_self())
+    //     );
+
+    // delay 5 seconds
     txn.delay_sec = 5;
+
+    // txn.ref_block_num = 0;
+    // txn.ref_block_prefix = 0;
+
     txn.send(now(), _self, false);
 }
 
@@ -877,4 +932,5 @@ EOSIO_DISPATCH2(dice,
                 (removesched)
                 (setremove)
                 (resetremove)
+                (schedhelper)
     )

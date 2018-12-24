@@ -46,7 +46,12 @@ public:
         _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value),
         _heroes(receiver, code.value), _winners(receiver, code.value),
         _config(receiver, code.value)
-    {}
+    {
+        if (! _config.exists()) {
+            st_config cfg = st_config();
+            _config.set(cfg, get_self());
+        }
+    }
 private:
     struct game;
 
@@ -185,6 +190,7 @@ private:
         uint64_t primary_key() const {
             return uuid;
         }
+        // std::string proof;
 
         uint64_t get_secondary_1() const { // gameuuid
             return gameuuid;
@@ -192,10 +198,10 @@ private:
         uint64_t get_secondary_2() const { // update_ts
             return (uint64_t)update_ts;
         }
-
         uint64_t get_secondary_3() const {
             return user.value;
         }
+
         void debug() const {
             eosio::print(">| ");
             eosio::print("uuid: ", uuid, ", ");
@@ -207,7 +213,6 @@ private:
             eosio::print("update timestamp: ", update_ts, ", ");
             eosio::print(" |");
         }
-        // EOSLIB_SERIALIZE(users, (uuid)(gameuuid)(update_ts));
     };
 
     TABLE hero {
@@ -250,14 +255,30 @@ private:
             eosio::print(" |");
         }
     };
-    struct config {
+    struct st_config {
         // uint64_t id;
-
+        uint128_t sender_id;
         uint32_t stop_remove_sched;
         // uint64_t primary_key() const {
         //     return id;
         // }
+        st_config() {
+            sender_id = 0;
+            stop_remove_sched = 0;
+        }
+        void debug() const {
+            eosio::print(">| ");
+            eosio::print("sender_id: ", sender_id, ", ");
+            eosio::print("stop_remove_sched: ", stop_remove_sched, ", ");
+            eosio::print(" |");
+        }
     };
+    uint128_t next_sender_id() {
+        auto cfg = _config.get_or_default(st_config());
+        cfg.sender_id += 1;
+        _config.set(cfg, admin);
+        return cfg.sender_id;
+    }
 
 public:
 
@@ -267,7 +288,7 @@ public:
 #endif
 
 private:
-    typedef eosio::singleton<"config"_n, config> config_singleton;
+    typedef eosio::singleton<"config"_n, st_config> config_singleton;
     config_singleton _config;
 
     typedef eosio::multi_index<"gametbl"_n, game> gametable;
@@ -333,6 +354,8 @@ public:
     // call it from offchain every 100 ms/1 s
     [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
     [[eosio::action]] void sched(eosio::name user, uint64_t gameuuid, time_t ts);
+    [[eosio::action]] void schedhelper(eosio::name user, uint64_t gameuuid, time_t ts);
+
     [[eosio::action]] void setremove();
     [[eosio::action]] void resetremove();
 
@@ -342,7 +365,7 @@ public:
     [[eosio::action]] void move(eosio::name user, uint64_t gameuuid, uint64_t steps);
     [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
 
-    [[eosio::action]] void delayid(eosio::name user);
+    [[eosio::action]] void delayid(eosio::name user, uint32_t amount);
 
 
 private:
