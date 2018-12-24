@@ -373,7 +373,7 @@ void dice::resetremove() {
     } else {
         struct st_config cfg = {};
         cfg.stop_remove_sched = false;
-        config.get_or_create(get_self()), cfg);
+        config.get_or_create(get_self(), cfg);
     }
 }
 void dice::setremove() {
