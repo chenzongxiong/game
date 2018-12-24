@@ -49,14 +49,7 @@ void dice::debug() {
     eosio::print(">>>>>>>>>>>>>>>>>>>>random>>>>>>>>>>>>>>>>>>>>");
     // pcg32_srandom_r(now(), 1);
     pcg32_srandom_r(42u, 54u);
-    // uint32_t rounds = 5;
-    // for (uint32_t round = 1; round <= rounds; ++ round) {
-    //     eosio::print("Round ", round, ", ");
-    //     for (uint32_t i = 0; i < 33; i ++) {
-    //         eosio::print(pcg32_boundedrand_r(6) + 1, ", ");
-    //     }
-    //     eosio::print("====================");
-    // }
+
     eosio::print(">>>>>>>>>>>>>>>>>>>>rng engine>>>>>>>>>>>>>>>>>>>>");
     for (auto &_rng : _rngtbl) {
         _rng.debug();
@@ -136,89 +129,97 @@ void dice::startgame(uint64_t gameuuid) {
                                      });
 
 }
-// action
-void dice::schedusers(uint64_t gameuuid, uint32_t total) {
-    // 1. authorization, only platform could run schedulers
-    // 2. remove expired users
-    // 3. random pick <total> users in waiting pool
-    // 4. put them into scheduling users vector
-    // 5. erase them from waitingpool
+// // action
+// void dice::schedusers(uint64_t gameuuid, uint32_t total) {
+//     // 1. authorization, only platform could run schedulers
+//     // 2. remove expired users
+//     // 3. random pick <total> users in waiting pool
+//     // 4. put them into scheduling users vector
+//     // 5. erase them from waitingpool
 
-    require_auth(admin);;
-    auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game != _games.cend(), "bug ? game not found.");
-    eosio_assert(_game->status == GAME_START, "bug ? game does not start");
+//     require_auth(admin);;
+//     auto _game = get_game_by_uuid(gameuuid);
+//     eosio_assert(_game != _games.cend(), "bug ? game not found.");
+//     eosio_assert(_game->status == GAME_START, "bug ? game does not start");
 
-    auto sched_user_it = _scheduled_users.begin();
-    while (sched_user_it != _scheduled_users.end()) {
-        if ((now() - sched_user_it->update_ts) > TIMEOUT_USERS) {
-            sched_user_it = _scheduled_users.erase(sched_user_it);
-        } else {
-            sched_user_it ++;
-        }
-    }
-
-    // multiple user in multiple games
-    // how many people in game gameuuid
-    std::vector<users> latest_scheduling_users;
-    for (auto _user : _waitingpool) {
-        if (_user.gameuuid == gameuuid) {
-            latest_scheduling_users.push_back(_user);
-        }
-    }
-
-    if (latest_scheduling_users.size() < total) {
-        total = latest_scheduling_users.size();
-    }
-
-    uint32_t i = 0;
-    std::vector<users> latest_scheduled_users;
-    std::set<uint64_t> book_keep;
-
-    while (i < total) {         // forever looping ?
-        // randomly pick one number
-        uint64_t idx = pcg32_boundedrand_r(total);
-        auto idx_it = book_keep.find(idx);
-
-        if (idx_it != book_keep.end()) {
-            // eosio::print("idx: ", idx, ", skip");
-            continue;
-
-        }
-        book_keep.insert(idx);
-
-        auto _user = latest_scheduling_users[idx];
-
-        eosio_assert(_user.gameuuid == gameuuid, "bug?");
-        // TODO: primary key of users in waitingpool can be overlapping
-        _scheduled_users.emplace(get_self(), [&](auto &u) {
-                                                 // u.uuid = _user.uuid; // make user every user only scheduled once
-                                                 u.uuid = _scheduled_users.available_primary_key();
-                                                 u.gameuuid = _user.gameuuid;
-                                                 u.steps = _user.steps;
-                                                 u.no = _scheduled_users.available_primary_key();
-                                                 u.user = _user.user;
-                                                 u.ts = _user.ts;
-                                                 u.update_ts = now();
-                                             });
-        latest_scheduled_users.push_back(_user);
-        // erase them from waitingpool since they are scheduled
-        auto u_it = _waitingpool.find(_user.uuid);
-        _waitingpool.erase(u_it);
-
-        i ++;
-    }
-// #ifdef DEBUG
-//     eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
-//     for (auto &_user : _scheduled_users) {
-//         _user.debug();
+//     auto sched_user_it = _scheduled_users.begin();
+//     while (sched_user_it != _scheduled_users.end()) {
+//         if ((now() - sched_user_it->update_ts) > TIMEOUT_USERS) {
+//             sched_user_it = _scheduled_users.erase(sched_user_it);
+//         } else {
+//             sched_user_it ++;
+//         }
 //     }
-// #endif
-}
+
+//     // multiple user in multiple games
+//     // how many people in game gameuuid
+//     std::vector<users> latest_scheduling_users;
+//     for (auto _user : _waitingpool) {
+//         if (_user.gameuuid == gameuuid) {
+//             latest_scheduling_users.push_back(_user);
+//         }
+//     }
+
+//     if (latest_scheduling_users.size() < total) {
+//         total = latest_scheduling_users.size();
+//     }
+
+//     uint32_t i = 0;
+//     std::vector<users> latest_scheduled_users;
+//     std::set<uint64_t> book_keep;
+
+//     while (i < total) {         // forever looping ?
+//         // randomly pick one number
+//         uint64_t idx = pcg32_boundedrand_r(total);
+//         auto idx_it = book_keep.find(idx);
+
+//         if (idx_it != book_keep.end()) {
+//             // eosio::print("idx: ", idx, ", skip");
+//             continue;
+
+//         }
+//         book_keep.insert(idx);
+
+//         auto _user = latest_scheduling_users[idx];
+
+//         eosio_assert(_user.gameuuid == gameuuid, "bug?");
+//         // TODO: primary key of users in waitingpool can be overlapping
+//         _scheduled_users.emplace(get_self(), [&](auto &u) {
+//                                                  // u.uuid = _user.uuid; // make user every user only scheduled once
+//                                                  u.uuid = _scheduled_users.available_primary_key();
+//                                                  u.gameuuid = _user.gameuuid;
+//                                                  u.steps = _user.steps;
+//                                                  u.no = _scheduled_users.available_primary_key();
+//                                                  u.user = _user.user;
+//                                                  u.ts = _user.ts;
+//                                                  u.update_ts = now();
+//                                              });
+//         latest_scheduled_users.push_back(_user);
+//         // erase them from waitingpool since they are scheduled
+//         auto u_it = _waitingpool.find(_user.uuid);
+//         _waitingpool.erase(u_it);
+
+//         i ++;
+//     }
+// // #ifdef DEBUG
+// //     eosio::print(">>>>>>>>>>>>>>>>>>>>SCHEDING USERS>>>>>>>>>>>>>>>>>>>>");
+// //     for (auto &_user : _scheduled_users) {
+// //         _user.debug();
+// //     }
+// // #endif
+// }
 
 // action
 #ifdef DEBUG
-void dice::clear(std::string tbl) {
+void dice::clear() {
+    clear2("gametbl");
+    clear2("waittbl");
+    clear2("schedtbl");
+    clear2("herotbl");
+    clear2("winnertbl");
+
+}
+void dice::clear2(std::string tbl) {
     require_auth(admin);
     // clear gametable
     if (tbl == "gametbl") {
@@ -265,6 +266,7 @@ void dice::enter(eosio::name user) {
      * 1. tranfer fee
      * 2. put him/her in waiting room
      * 3. increase shadow awards pool
+     * 4. schedule the user to schedule table
      */
     eosio_assert(user == "eosio.token"_n, "fake tokens");
     auto data = eosio::unpack_action_data<eosio_token_transfer>();
@@ -284,6 +286,21 @@ void dice::enter(eosio::name user) {
         if (data.quantity.amount >= _game->fee) { // pay enough fee
             // check game
             incr_game_shadow_awards(*_game, _game->fee);
+
+            // seed
+            // uint32_t lucky_number = 0;
+            // eosio::checksum256 seed1 = user_seed_hash(lucky_number);
+            // eosio::checksum256 seed2 = tx_hash();
+            // st_seeds seeds = {
+            //     .seed1 = seed1,
+            //     .seed2 = seed2,
+            // };
+            // eosio::checksum256 seed = eosio::sha256((char *)&seeds.seed1, sizeof(seeds.seed1)*2);
+            // eosio::print(", debuing enter...., ");
+            // eosio::print("seed1: ", seed1, ", ");
+            // eosio::print("seed2: ", seed2, ", ");
+            // eosio::print("seed: ", seed, ", ");
+
             _waitingpool.emplace(get_self(), [&](auto &u) {
                                                  u.uuid= _waitingpool.available_primary_key();
                                                  u.gameuuid = _game->uuid;
@@ -300,13 +317,9 @@ void dice::enter(eosio::name user) {
                 get_self(), "schedhelper"_n,
                 std::make_tuple(data.from, gameuuid, now())
                 );
-
-            // NOTE: delay x (1 - 30) seconds, to avoid one man controls too many accounts
-            // pcg32_srandom_r(now(), now());
-            // uint32_t delayed = pcg32_boundedrand_r(30) + 1;
-            uint32_t delayed = 3;
+            // delay 10 seconds
+            uint32_t delayed = 10;
             txn.delay_sec = delayed;
-            // txn.send(now(), _self, false);
             txn.send(next_sender_id(), get_self(), false);
 
             _games.modify(_game, get_self(), [&](auto &g) {
@@ -326,68 +339,102 @@ void dice::enter(eosio::name user) {
 }
 
 void dice::schedhelper(eosio::name user, uint64_t gameuuid, time_t ts) {
+    // only this contract can run
+    require_auth(get_self());
+
     uint32_t block_num = tapos_block_num();
     uint32_t block_prefix = tapos_block_prefix();
+    // eosio::print("schedule-helper");
 
-    eosio::print("block number: ", block_num, ", ");
-    eosio::print("block prefix: ", block_prefix, ", ");
+    // eosio::print("block number: ", block_num, ", ");
+    // eosio::print("block prefix: ", block_prefix, ", ");
 
     eosio::transaction txn {};
     txn.actions.emplace_back(
-        eosio::permission_level{_self, "active"_n},
+        // eosio::permission_level{user, "active"_n},
+        eosio::permission_level{get_self(), "active"_n},
         get_self(), "sched"_n,
         std::make_tuple(user, gameuuid, now())
         );
-
-    // NOTE: delay x (1 - 30) seconds, to avoid one man controls too many accounts
+    // NOTE: delay `x` (3 - 32) seconds, to avoid one man controls too many accounts
+    // this random number generator might be vunerable, but it's fine since
+    // it's only affect the order of the scheduled table.
+    // a hacker might be able to occupy at leading position.
+    // but a common user still has chance to be put at leading position
+    // and a common user can also enter this game multiple time to increase
+    // the chance to be put at leading position
     pcg32_srandom_r(now(), now());
-    uint32_t delayed = pcg32_boundedrand_r(30) + 1;
+    uint32_t delayed = pcg32_boundedrand_r(29) + 3;
+    eosio::print("delay: ", delayed, ", ");
+
     txn.delay_sec = delayed;
+
     txn.send(next_sender_id(), get_self(), false);
 }
 
 void dice::sched(eosio::name user, uint64_t gameuuid, time_t ts) {
+    // only this contract can run
+    require_auth(get_self());
+
+    uint32_t block_num = tapos_block_num();
+    uint32_t block_prefix = tapos_block_prefix();
+
+    // eosio::print("scheduled.");
+    // eosio::print("block number: ", block_num, ", ");
+    // eosio::print("block prefix: ", block_prefix, ", ");
+
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "bug ? game not found.");
     eosio_assert(_game->status == GAME_START, "bug ? game does not start");
+    uint128_t proof = 0;
+    proof |= block_num;
+    proof <<= 32;
+    proof |= block_prefix;
+    proof <<= 64;
+    time_t curr_ts = now();
+    proof |= (uint64_t)curr_ts;
+    uint64_t sched_no = next_sched_no();
+    uint64_t num_sched_users = get_num_sched_users();
+    time_t expired = curr_ts + num_sched_users * SCHED_TIMEOUT;
 
     _scheduled_users.emplace(get_self(), [&](auto &u) {
+                                             // u.uuid = sched_no;
                                              u.uuid = _scheduled_users.available_primary_key();
                                              u.gameuuid = gameuuid;
                                              u.steps = 0;
                                              u.no = _scheduled_users.available_primary_key();
+                                             // u.no = sched_no;
                                              u.user = user;
                                              u.ts = ts;
-                                             u.update_ts = now();
+                                             u.update_ts = curr_ts;
+                                             u.expired = expired;
+                                             u.proof = proof;
                                          });
-    // TODO: erase timeout users
+    incr_num_sched_users();
 
+    // TODO: run defer transaction to erase schedule users
+
+}
+
+void dice::erasetimeout(users _user) {
+    eosio::print("_user.update_ts: ", _user.update_ts, ", ");
+    eosio::print("now: ", now(), ", ");
 }
 
 void dice::resetremove() {
     require_auth(admin);
-    if (_config.exists()) {
-        auto cfg = _config.get();
-        cfg.stop_remove_sched = false;
-        _config.set(cfg, get_self());
-    } else {
-        struct st_config cfg = {};
-        cfg.stop_remove_sched = false;
-        config.get_or_create(get_self(), cfg);
-    }
+    auto cfg = _config.get_or_default({});
+
+    cfg.stop_remove_sched = false;
+    _config.set(cfg, get_self());
 }
+
 void dice::setremove() {
     require_auth(admin);
+    auto cfg = _config.get_or_default({});
 
-    if (_config.exists()) {
-        auto cfg = _config.get();
-        cfg.stop_remove_sched = true;
-        _config.set(cfg, get_self());
-    } else {
-        struct st_config cfg = {};
-        cfg.stop_remove_sched = true;
-        _config.get_or_create(get_self(), cfg);
-    }
+    cfg.stop_remove_sched = true;
+    _config.set(cfg, get_self());
 }
 
 void dice::removesched() {
@@ -432,21 +479,12 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
 
     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
         if (_user->gameuuid == gameuuid) { // in this game
+            // this user doesn't toss yet
+            if (_user->user == user && _user->steps == 0) {
 
-            if (_user->user == user && _user->steps == 0) { // this user doesn't toss yet
+                uint128_t proof = _user->proof;
+                uint32_t dice_number = get_rnd_dice_number(proof);
 
-                eosio::transaction txn {};
-                txn.actions.emplace_back(
-                    eosio::permission_level{user, "active"_n},
-                    get_self(), "getrnd"_n,
-                    std::make_tuple()
-                    );
-                // delay 10 seconds
-                txn.delay_sec = 5;
-                txn.send(now(), user, false);
-
-                uint32_t dice_number = get_rnd_dice_number();
-#ifdef DEBUG
                 eosio::print("{");
                 eosio::print("\"dice_number\": ", dice_number, ", ");
                 eosio::print("\"user\": \"", user, "\", ");
@@ -455,13 +493,12 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                 eosio::print("\"toss\": ", true);
                 eosio::print("}");
 
-#endif
                 _scheduled_users.modify(_user, get_self(), [&](auto &u) {
                                                                u.steps = dice_number;
                                                                u.update_ts = now();
                                                            });
             } else {
-#ifdef DEBUG
+
                 eosio::print("{");
                 eosio::print("\"dice_number\": ", _user->steps, ", ");
                 eosio::print("\"user\": \"", user, "\", ");
@@ -470,7 +507,6 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                 eosio::print("\"toss\": ", false);
                 eosio::print("}");
 
-#endif
             }
             break;              // this game only executes once
         }
@@ -488,8 +524,12 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     require_auth(user);
     auto _user = is_sched_user_in_game(user, gameuuid);
     bool valid_user_game = (_user != _scheduled_users.cend());
-    eosio_assert(valid_user_game, "user not in game");
     uint32_t inner_steps = _user->steps;
+    bool expired = (now() - _user->update_ts >= SCHED_TIMEOUT);
+    eosio_assert(valid_user_game, "user not in game");
+    eosio_assert(inner_steps <= 6 && inner_steps > 0, "inner steps error");
+    eosio_assert(expired, "bug ? expired user");
+
     // 2. check steps is smaller than or equal 6
     // TODO: how to deal with order
     // right: steps & 0xffff 0000 0000 0000
@@ -500,7 +540,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     uint32_t left  = (steps >> 32) & 0xffff;
     uint32_t up    = (steps >> 16) & 0xffff;
     uint32_t down  = steps         & 0xffff;
-    eosio_assert(inner_steps <= 6, "inner steps error");
     eosio_assert(right <= inner_steps, "right steps error");
     eosio_assert(left  <= inner_steps, "left  steps error");
     eosio_assert(up    <= inner_steps, "up    steps error");
@@ -518,7 +557,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     incr_game_awards(*_game, _game->fee);
 
     // 4. arrange the sequence
-    // DOINGO: right <--> left
+    // DONE: right <--> left
     bool right_first = true;
     bool up_first = true;
     point pt = point(_game->pos);
@@ -554,7 +593,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         }
     }
 
-    // // up    <--> down
+    // up    <--> down
     bool up_overflow = (pt.col - up > pt.col);
     if (! up_overflow) {
         pt.col -= up;
@@ -576,6 +615,9 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             } else {
                 eosio_assert(false, "error");
             }
+        } else {
+            // move down is also wrong
+            eosio_assert(false, "error");
         }
     }
 
@@ -607,7 +649,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         }
     }
 
-    // TODO: inner_transfer immediately or not ?
     bool is_won = reach_goal(*_game);
     if (is_won) {
 #ifdef DEBUG
@@ -617,7 +658,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         point pt = point(_game->pos);
         _winners.emplace(get_self(), [&](auto &w) {
                                          w.uuid = _winners.available_primary_key();
-                                         // w._user = _user;
                                          w.user = user;
                                          w.gameuuid = _game->uuid;
                                          w.ts = now();
@@ -640,6 +680,8 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         eosio::print("\"update_ts\": ", now(), ", ");
         eosio::print("\"win\": ", true);
         eosio::print("}");
+
+        // TODO: how to deal with the rest people when game is closed
 
     } else {
         eosio::print("{");
@@ -832,28 +874,23 @@ void dice::distribute(const game& _game,
 }
 
 void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, uint32_t seed) {
-    // DONE: verify inner_transfer action again and again
-    // NOTE: cleos set account permission your_account active '{"threshold": 1,"keys": [{"key": "EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4","weight": 1}],"accounts": [{"permission":{"actor":"your_contract","permission":"eosio.code"},"weight":1}]}' owner -p your_account
 
     eosio::name permission = "active"_n;
     eosio::asset quantity = eosio::asset(amount, eosio::symbol("EOS", 4));
 
+    // delay transaction:
     // https://blog.csdn.net/ITleaks/article/details/83069431
-    // delay transaction: https://blog.csdn.net/ITleaks/article/details/83378319
+    // https://blog.csdn.net/ITleaks/article/details/83378319
     eosio::transaction txn {};
     txn.actions.emplace_back(
         eosio::permission_level{ from, permission },
         "eosio.token"_n, "transfer"_n,
         std::make_tuple(from, to, quantity, std::string(""))
         );
-    // delay 1 seconds
-    txn.delay_sec = 1;
-    uint128_t id = 0x0 | to.value;
-    id <<= 64;
-    id |= (from.value & 0xffffffff00000000);
-    id |= (seed & 0xffffffff);
+    // delay 10 seconds
+    txn.delay_sec = 10;
 
-    txn.send(id, from, false);
+    txn.send(next_sender_id(), from, false);
 }
 
 void dice::delayid(eosio::name user, uint32_t amount) {
@@ -871,25 +908,26 @@ void dice::delayid(eosio::name user, uint32_t amount) {
         txn.actions.push_back(atx);
     }
 
-    // txn.actions.emplace_back(
-    //     eosio::permission_level{_self, "active"_n},
-    //     get_self(), "delayid"_n,
-    //     std::make_tuple(get_self())
-    //     );
-
     // delay 5 seconds
     txn.delay_sec = 5;
+    txn.send(next_sender_id(), _self, false);
 
-    // txn.ref_block_num = 0;
-    // txn.ref_block_prefix = 0;
-
-    txn.send(now(), _self, false);
+    // auto size = read_transaction(nullptr, 0);
+    // char *tx = (char *)malloc(size);
+    // read_transaction(tx, size);
+    // eosio::transaction _txn = eosio::unpack<eosio::transaction>(tx, size);
+    // eosio::checksum256 _tx_hash = eosio::sha256(tx, size);
+    // eosio::print("tx.ref_block_num: ", (uint32_t)_txn.ref_block_num, ", ");
+    // eosio::print("tx.ref_block_prefix: ", (uint32_t)_txn.ref_block_prefix, ", ");
+    // eosio::print("tx.delay_sec: ", (uint32_t)_txn.delay_sec, ", ");
+    // eosio::print("tx.hash: ", _tx_hash);
 }
 
 
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
         void apply( uint64_t receiver, uint64_t code, uint64_t action ) { \
+            /* https://mp.weixin.qq.com/s/1sV2ps1n6pPNb-0qiTXG9Q */     \
             if (code == receiver and  eosio::name(action) != "enter"_n) { \
                 switch ( action ) {                                     \
                     EOSIO_DISPATCH_HELPER( TYPE, MEMBERS);              \
@@ -921,11 +959,12 @@ EOSIO_DISPATCH2(dice,
                 (version)
                 (debug)
                 (clear)
+                (clear2)
                 (delayid)
 #endif
                 (addgame)
                 (startgame)
-                (schedusers)
+                // (schedusers)
                 (move)
                 (toss)
                 (sendtokens)

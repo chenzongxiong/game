@@ -3,6 +3,7 @@
 #include <eosiolib/time.hpp>
 #include <eosiolib/transaction.hpp>
 #include <eosiolib/singleton.hpp>
+#include <eosiolib/crypto.hpp>
 #include <boost/algorithm/string.hpp>
 
 /* DOING:
@@ -25,13 +26,14 @@
  * https://www.bcskill.com/index.php/archives/516.html
  * DONE: seperate awards transaction and move transaction
  * DONE: show hero board
- * TODO: generate goals randomly
+ * DOING: generate goals randomly
  * TODO: help user buy cpu/ram/net
- * TODO: random function review
+ * DOING: random function review
  * TODO: test multiple actions per transaction
- * TODO: generate random number
+ * DONE: generate random number
  * DONE: efficiently schedule, via defered transaction
- * TODO: how to deal with left users if a game is closed ?
+ * DOING: how to deal with left users if a game is closed ?
+ * TODO: airdrop
  */
 
 
@@ -46,12 +48,8 @@ public:
         _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value),
         _heroes(receiver, code.value), _winners(receiver, code.value),
         _config(receiver, code.value)
-    {
-        if (! _config.exists()) {
-            st_config cfg = st_config();
-            _config.set(cfg, get_self());
-        }
-    }
+    {}
+
 private:
     struct game;
 
@@ -80,6 +78,7 @@ private:
 
     // static constexpr uint32_t TIMEOUT_USERS = 120;
     static constexpr uint32_t TIMEOUT_USERS = 172800;
+    static constexpr uint32_t  SCHED_TIMEOUT = 172800;
 
     struct point {
         uint32_t row;
@@ -187,10 +186,13 @@ private:
         eosio::name user;
         time_t ts;
         time_t update_ts;
+        time_t expired;
+        // block_num block_prefix time_t
+        uint128_t proof;
+        uint8_t deleted;
         uint64_t primary_key() const {
             return uuid;
         }
-        // std::string proof;
 
         uint64_t get_secondary_1() const { // gameuuid
             return gameuuid;
@@ -225,6 +227,7 @@ private:
         uint32_t col;
         time_t ts;
         time_t update_ts;
+        // uint8_t deleted;
 
         uint64_t primary_key() const {
             return uuid;
@@ -256,28 +259,49 @@ private:
         }
     };
     struct st_config {
-        // uint64_t id;
         uint128_t sender_id;
         uint32_t stop_remove_sched;
-        // uint64_t primary_key() const {
-        //     return id;
-        // }
-        st_config() {
-            sender_id = 0;
-            stop_remove_sched = 0;
-        }
+        uint64_t sched_no;
+        uint64_t num_sched_users;
+
         void debug() const {
             eosio::print(">| ");
             eosio::print("sender_id: ", sender_id, ", ");
             eosio::print("stop_remove_sched: ", stop_remove_sched, ", ");
+            eosio::print("sched_no: ", sched_no, ", ");
             eosio::print(" |");
         }
     };
     uint128_t next_sender_id() {
-        auto cfg = _config.get_or_default(st_config());
+        auto cfg = _config.get_or_default({});
+        // cfg.debug();
         cfg.sender_id += 1;
-        _config.set(cfg, admin);
+        _config.set(cfg, get_self());
         return cfg.sender_id;
+    }
+    uint64_t next_sched_no() {
+        auto cfg = _config.get_or_default({});
+        cfg.sched_no += 1;
+        _config.set(cfg, get_self());
+        return cfg.sched_no;
+    }
+    uint64_t incr_num_sched_users() {
+        auto cfg = _config.get_or_default({});
+        cfg.num_sched_users += 1;
+        _config.set(cfg, get_self());
+        return cfg.num_sched_users;
+    }
+    uint64_t desc_num_sched_users() {
+        auto cfg = _config.get_or_default({});
+        cfg.num_sched_users -= 1;
+        _config.set(cfg, get_self());
+        return cfg.num_sched_users;
+    }
+    uint64_t get_num_sched_users() {
+        auto cfg = _config.get_or_default({});
+        cfg.num_sched_users = 0;
+        _config.set(cfg, get_self());
+        return cfg.num_sched_users;
     }
 
 public:
@@ -316,7 +340,7 @@ private:
     typedef eosio::multi_index<"winnertbl"_n, hero> winnertbl;
     herotbl _heroes;
     winnertbl _winners;
-    // void update_heroes(struct users _user, int64_t awards) {
+
     void update_heroes(eosio::name user, uint64_t awards) {
         eosio::print("update heroes");
         auto h_it = _heroes.find(user.value);
@@ -343,16 +367,16 @@ public:
     [[eosio::action]] void addgame(eosio::name gamename, uint32_t width,
                                    uint32_t height, uint32_t status, int64_t fee);
 #ifdef DEBUG
-    [[eosio::action]] void clear(std::string tbl);
+    [[eosio::action]] void clear();
+    [[eosio::action]] void clear2(std::string tbl);
 #endif
     [[eosio::action]] void startgame(uint64_t gameuuid);
     [[eosio::action]] void closegame(uint64_t gameuuid);
     [[eosio::action]] void stopgame(uint64_t gameuuid);
 
-    // [[eosio::action]] void enter(eosio::name user, uint64_t gameuuid); // enter a game, specified by game name
     [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
     // call it from offchain every 100 ms/1 s
-    [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
+    // [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
     [[eosio::action]] void sched(eosio::name user, uint64_t gameuuid, time_t ts);
     [[eosio::action]] void schedhelper(eosio::name user, uint64_t gameuuid, time_t ts);
 
@@ -366,6 +390,7 @@ public:
     [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
 
     [[eosio::action]] void delayid(eosio::name user, uint32_t amount);
+    [[eosio::action]] void erasetimeout(users _user);
 
 
 private:
@@ -454,8 +479,7 @@ private:
         eosio_assert(steps > 0 &&steps <= 6, "invalid steps: > 6");
         // 3. check steps is equal to given steps
         auto _game = get_game_by_uuid(gameuuid);
-        eosio_assert(_game->status == GAME_START, "game does not start");
-        incr_game_awards(*_game, _game->fee);
+        eosio_assert(_game->status == GAME_START, "bug ? game does not start");
         return _game;
     }
 
@@ -484,13 +508,13 @@ private:
 
     void pcg32_srandom_r(uint64_t initstate, uint64_t initseq) {
         // add a random engine
-        uint64_t block_num = (uint64_t)tapos_block_num();
-        uint64_t block_prefix = (uint64_t)tapos_block_prefix();
-        eosio::print("block number:", block_num, ", ");
-        eosio::print("block_prefix: ", block_prefix, ", ");
+        // uint64_t block_num = (uint64_t)tapos_block_num();
+        // uint64_t block_prefix = (uint64_t)tapos_block_prefix();
+        // eosio::print("block number:", block_num, ", ");
+        // eosio::print("block_prefix: ", block_prefix, ", ");
 
-        initstate = block_num << 32 | block_prefix;
-        initseq = now();
+        // initstate = block_num << 32 | block_prefix;
+        // initseq = now();
 
         auto _rng_it = _rngtbl.begin();
         if (_rng_it == _rngtbl.end()) {
@@ -550,8 +574,17 @@ private:
         pcg32_srandom_r(now(), initseq);
         return pcg32_boundedrand_r(6) + 1;
     }
-    uint32_t get_rnd_game_pos(uint32_t board_width, uint32_t board_height) {
+    uint32_t get_rnd_dice_number(uint128_t seed) {
+        uint64_t initstate = (uint64_t)(seed >> 64);
+        uint64_t initseq = (uint64_t)(seed);
+        eosio::print("initstate: ", initstate, ", ");
+        eosio::print("initseq: ", initseq, ", ");
+        eosio::print("seed: ", seed, ", ");
 
+        pcg32_srandom_r(initstate, initseq);
+        return pcg32_boundedrand_r(6) + 1;
+    }
+    uint32_t get_rnd_game_pos(uint32_t board_width, uint32_t board_height) {
         pcg32_srandom_r(now(), initseq);
         uint32_t row = pcg32_boundedrand_r(board_height);
         uint32_t col = pcg32_boundedrand_r(board_width);
@@ -569,5 +602,37 @@ private:
         boost::split(results, memo, [](char c){return c == ':';});
         uint64_t gameuuid = std::stoull(results[1]);
         return gameuuid;
+    }
+
+    // using random number generator from eosbet
+private:
+    struct st_randkey {
+        uint64_t id;
+
+        eosio::public_key key;
+        uint64_t primary_key() const {
+            return id;
+        }
+    };
+
+    struct st_seeds {
+        eosio::checksum256 seed1;
+        eosio::checksum256 seed2;
+    };
+
+public:
+    [[eosio::action]] void newrandkey(eosio::public_key key);
+    eosio::checksum256 tx_hash() {
+        auto s = read_transaction(nullptr, 0);
+        char *tx = (char *)malloc(s);
+        read_transaction(tx, s);
+        eosio::checksum256 _tx_hash = eosio::sha256(tx, s);
+        return _tx_hash;
+    }
+    eosio::checksum256 user_seed_hash(uint32_t user_seed) {
+        // user_seed
+        std::string seed_str = "a";
+        eosio::checksum256 _user_seed_hash = eosio::sha256((char *)&seed_str, seed_str.length());
+        return _user_seed_hash;
     }
 };
