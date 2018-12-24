@@ -324,6 +324,7 @@ void dice::enter(eosio::name user) {
     eosio::print("call enter successfully");
 #endif
 }
+
 void dice::schedhelper(eosio::name user, uint64_t gameuuid, time_t ts) {
     uint32_t block_num = tapos_block_num();
     uint32_t block_prefix = tapos_block_prefix();
@@ -368,11 +369,11 @@ void dice::resetremove() {
     if (_config.exists()) {
         auto cfg = _config.get();
         cfg.stop_remove_sched = false;
-        _config.set(cfg, admin);
+        _config.set(cfg, get_self());
     } else {
         struct st_config cfg = {};
         cfg.stop_remove_sched = false;
-        _config.get_or_create(admin, cfg);
+        config.get_or_create(get_self()), cfg);
     }
 }
 void dice::setremove() {
@@ -381,11 +382,11 @@ void dice::setremove() {
     if (_config.exists()) {
         auto cfg = _config.get();
         cfg.stop_remove_sched = true;
-        _config.set(cfg, admin);
+        _config.set(cfg, get_self());
     } else {
         struct st_config cfg = {};
         cfg.stop_remove_sched = true;
-        _config.get_or_create(admin, cfg);
+        _config.get_or_create(get_self(), cfg);
     }
 }
 
