@@ -54,7 +54,7 @@ private:
     struct game;
 
 private:
-    std::string _VERSION = "0.1.2";
+    std::string _VERSION = "0.9.0";
 
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr uint32_t MAXSIZE = 50;
@@ -76,9 +76,8 @@ private:
     static constexpr uint32_t GAME_OVER = 4;
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    // static constexpr uint32_t TIMEOUT_USERS = 120;
-    static constexpr uint32_t TIMEOUT_USERS = 172800;
-    static constexpr uint32_t  SCHED_TIMEOUT = 172800;
+    static constexpr uint32_t TIMEOUT_USERS = 120;
+    // static constexpr uint32_t TIMEOUT_USERS = 172800;
 
     struct point {
         uint32_t row;

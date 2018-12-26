@@ -536,17 +536,20 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     // left : steps & 0x0000 ffff 0000 0000
     // up   : steps & 0x0000 0000 ffff 0000
     // down : steps & 0x0000 0000 0000 ffff
-    uint32_t right = (steps >> 48) & 0xffff;
-    uint32_t left  = (steps >> 32) & 0xffff;
-    uint32_t up    = (steps >> 16) & 0xffff;
-    uint32_t down  = steps         & 0xffff;
+
+    uint32_t right = (steps & 0xffff000000000000) >> 48;
+    uint32_t left  = (steps & 0x0000ffff00000000) >> 32;
+    uint32_t up    = (steps & 0x00000000ffff0000) >> 16;
+    uint32_t down  = (steps & 0x000000000000ffff);
+#ifdef DEBUG
+    eosio::print("|> right: ", right, ", left: ", left, ", up: ", up, ", down: ", down, " |");
+#endif
+    eosio_assert(inner_steps <= 6, "inner steps error");
     eosio_assert(right <= inner_steps, "right steps error");
     eosio_assert(left  <= inner_steps, "left  steps error");
     eosio_assert(up    <= inner_steps, "up    steps error");
     eosio_assert(down  <= inner_steps, "down  steps error");
-#ifdef DEBUG
-    eosio::print("|> right: ", right, ", left: ", left, ", up: ", up, ", down: ", down, " |");
-#endif
+
     uint32_t _steps = (right + left + up + down);
     // 3. check steps is equal to given steps
     eosio_assert(_steps == inner_steps, "total steps error");
@@ -651,9 +654,9 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
 
     bool is_won = reach_goal(*_game);
     if (is_won) {
-#ifdef DEBUG
-        eosio::print("user: ", user, " won.");
-#endif
+// #ifdef DEBUG
+//         eosio::print("user: ", user, " won.");
+// #endif
         // add it to winner_table
         point pt = point(_game->pos);
         _winners.emplace(get_self(), [&](auto &w) {
@@ -719,7 +722,7 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
         participants.push_back(_u.user);
     }
 
-    eosio::print("distribute tokens");
+    // eosio::print("distribute tokens");
     distribute(*_game,
                user,
                participants,
@@ -737,9 +740,9 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
-#ifdef DEBUG
-    pt.debug();
-#endif
+// #ifdef DEBUG
+//     pt.debug();
+// #endif
     bool overflow = (pt.row + steps < pt.row);
     eosio_assert(! overflow, "upper overflow");
     pt.row = pt.row + steps;
@@ -747,10 +750,10 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     eosio_assert(valid, "invalid right steps");
 
     update_game_pos(*_game, pt);
-#ifdef DEBUG
-    eosio::print("move right");
-    _game->debug();
-#endif
+// #ifdef DEBUG
+//     eosio::print("move right");
+//     _game->debug();
+// #endif
 }
 
 void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
@@ -758,9 +761,9 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
-#ifdef DEBUG
-    pt.debug();
-#endif
+// #ifdef DEBUG
+//     pt.debug();
+// #endif
     bool overflow = (pt.row - steps > pt.row);
     eosio_assert(! overflow, "lower overflow");
 
@@ -769,10 +772,10 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     eosio_assert(valid, "invalid left steps");
 
     update_game_pos(*_game, pt);
-#ifdef DEBUG
-    eosio::print("move left");
-    _game->debug();
-#endif
+// #ifdef DEBUG
+//     eosio::print("move left");
+//     _game->debug();
+// #endif
 
 }
 
@@ -781,9 +784,9 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
-#ifdef DEBUG
-    pt.debug();
-#endif
+// #ifdef DEBUG
+//     pt.debug();
+// #endif
     bool overflow = (pt.col - steps > pt.col);
     eosio_assert(! overflow, "upper overflow");
 
@@ -792,10 +795,10 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     eosio_assert(valid, "invalid up steps");
 
     update_game_pos(*_game, pt);
-#ifdef DEBUG
-    eosio::print("move up");
-    _game->debug();
-#endif
+// #ifdef DEBUG
+//     eosio::print("move up");
+//     _game->debug();
+// #endif
 
 }
 
@@ -803,9 +806,9 @@ void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
-#ifdef DEBUG
-    pt.debug();
-#endif
+// #ifdef DEBUG
+//     pt.debug();
+// #endif
     bool overflow = (pt.col + steps < pt.col);
     eosio_assert(! overflow, "lower overflow");
     pt.col += steps;
@@ -813,10 +816,10 @@ void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     eosio_assert(valid, "invalid down steps");
 
     update_game_pos(*_game, pt);
-#ifdef DEBUG
-    eosio::print("move down");
-    _game->debug();
-#endif
+// #ifdef DEBUG
+//     eosio::print("move down");
+//     _game->debug();
+// #endif
 }
 
 bool dice::reach_goal(const game &_game) {
