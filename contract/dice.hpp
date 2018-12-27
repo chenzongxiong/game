@@ -39,6 +39,8 @@
 
 #define DEBUG 1
 
+#define LOCAL 0
+
 class [[eosio::contract]] dice : public eosio::contract {
 
 public:
@@ -66,10 +68,17 @@ private:
     static constexpr float LAST_GOAL_PERCENT = 0.05;
     static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
 
-    static constexpr eosio::name dividend_account = "arestest4321"_n;
-    static constexpr eosio::name platform = "arestest1234"_n;
-    static constexpr eosio::name lastgoal = "arestest1234"_n;
+#if LOCAL
+    static constexpr eosio::name dividend_account = "player4"_n;
+    static constexpr eosio::name platform = "player3"_n;
+    static constexpr eosio::name lastgoal = "player2"_n;
     static constexpr eosio::name admin = "player1"_n;
+#else
+    static constexpr eosio::name dividend_account = "arestest4321"_n;
+    static constexpr eosio::name platform = "arestest4321"_n;
+    static constexpr eosio::name lastgoal = "arestest4321"_n;
+    static constexpr eosio::name admin = "arestest1234"_n;
+#endif
 
     static constexpr uint32_t GAME_CLOSE = 1;
     static constexpr uint32_t GAME_START = 2;
@@ -78,6 +87,7 @@ private:
 
     static constexpr uint32_t TIMEOUT_USERS = 120;
     // static constexpr uint32_t TIMEOUT_USERS = 172800;
+    static constexpr uint32_t SCHED_TIMEOUT = 120;
 
     struct point {
         uint32_t row;
@@ -131,7 +141,7 @@ private:
         return true;
     }
 
-    void inner_transfer(eosio::name from, eosio::name to, int64_t amount, uint32_t seed);
+    void inner_transfer(eosio::name from, eosio::name to, int64_t amount);
 
     TABLE game {
 
@@ -185,9 +195,10 @@ private:
         eosio::name user;
         time_t ts;
         time_t update_ts;
-        time_t expired;
+        time_t expired_ts;
         // block_num block_prefix time_t
         uint128_t proof;
+        uint8_t sched_flag;
         uint8_t deleted;
         uint64_t primary_key() const {
             return uuid;
@@ -202,7 +213,12 @@ private:
         uint64_t get_secondary_3() const {
             return user.value;
         }
-
+        uint64_t get_secondary_4() const {
+            return (uint64_t)expired_ts;
+        }
+        uint64_t get_secondary_5() const {
+            return (uint64_t)sched_flag;
+        }
         void debug() const {
             eosio::print(">| ");
             eosio::print("uuid: ", uuid, ", ");
@@ -212,6 +228,8 @@ private:
             eosio::print("steps: ", steps, ", ");
             eosio::print("timestamp: ", ts, ", ");
             eosio::print("update timestamp: ", update_ts, ", ");
+            eosio::print("expired ts: ", expired_ts, ", ");
+            eosio::print("sched_flag: ", (uint32_t)sched_flag, ", ");
             eosio::print(" |");
         }
     };
@@ -261,19 +279,19 @@ private:
         uint128_t sender_id;
         uint32_t stop_remove_sched;
         uint64_t sched_no;
-        uint64_t num_sched_users;
+        uint64_t num_sched_users = 0;
 
         void debug() const {
             eosio::print(">| ");
             eosio::print("sender_id: ", sender_id, ", ");
             eosio::print("stop_remove_sched: ", stop_remove_sched, ", ");
             eosio::print("sched_no: ", sched_no, ", ");
+            eosio::print("num_sched_users: ", num_sched_users, ", ");
             eosio::print(" |");
         }
     };
     uint128_t next_sender_id() {
         auto cfg = _config.get_or_default({});
-        // cfg.debug();
         cfg.sender_id += 1;
         _config.set(cfg, get_self());
         return cfg.sender_id;
@@ -284,23 +302,28 @@ private:
         _config.set(cfg, get_self());
         return cfg.sched_no;
     }
-    uint64_t incr_num_sched_users() {
+    uint64_t incr_num_sched_users(uint32_t num) {
         auto cfg = _config.get_or_default({});
-        cfg.num_sched_users += 1;
+        cfg.num_sched_users += num;
         _config.set(cfg, get_self());
         return cfg.num_sched_users;
     }
-    uint64_t desc_num_sched_users() {
+    uint64_t desc_num_sched_users(uint32_t num) {
         auto cfg = _config.get_or_default({});
-        cfg.num_sched_users -= 1;
+        cfg.num_sched_users -= num;
         _config.set(cfg, get_self());
         return cfg.num_sched_users;
     }
     uint64_t get_num_sched_users() {
-        auto cfg = _config.get_or_default({});
-        cfg.num_sched_users = 0;
-        _config.set(cfg, get_self());
-        return cfg.num_sched_users;
+        if (_config.exists()) {
+            auto cfg = _config.get();
+            return cfg.num_sched_users;
+        } else {
+            auto cfg = _config.get_or_default({});
+            cfg.num_sched_users = 0;
+            _config.set(cfg, get_self());
+            return cfg.num_sched_users;
+        }
     }
 
 public:
@@ -320,12 +343,14 @@ private:
     typedef eosio::multi_index<"waittbl"_n, users,
                                eosio::indexed_by<"gameuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_1>>,
                                eosio::indexed_by<"updatets"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_2>>,
-                               eosio::indexed_by<"username"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_3>>
+                               eosio::indexed_by<"username"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_3>>,
+                               eosio::indexed_by<"schedflag"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_5>>
                                > usertable1;
     typedef eosio::multi_index<"schedtbl"_n, users,
                                eosio::indexed_by<"gameuuid"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_1>>,
                                eosio::indexed_by<"updatets"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_2>>,
-                               eosio::indexed_by<"username"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_3>>
+                               eosio::indexed_by<"username"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_3>>,
+                               eosio::indexed_by<"expiredts"_n, eosio::const_mem_fun<users, uint64_t, &users::get_secondary_4>>
                                > usertable2;
     usertable1 _waitingpool;
     usertable2 _scheduled_users; // the users in this vector already get a line number, but not toss a dice
@@ -374,10 +399,8 @@ public:
     [[eosio::action]] void stopgame(uint64_t gameuuid);
 
     [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
-    // call it from offchain every 100 ms/1 s
-    // [[eosio::action]] void schedusers(uint64_t gameuuid, uint32_t total); // schedule users
-    [[eosio::action]] void sched(eosio::name user, uint64_t gameuuid, time_t ts);
-    [[eosio::action]] void schedhelper(eosio::name user, uint64_t gameuuid, time_t ts);
+    [[eosio::action]] void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);;
+    [[eosio::action]] void schedhelper(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);
 
     [[eosio::action]] void setremove();
     [[eosio::action]] void resetremove();
@@ -389,9 +412,9 @@ public:
     [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
 
     [[eosio::action]] void delayid(eosio::name user, uint32_t amount);
-    [[eosio::action]] void erasetimeout(users _user);
-
-
+    [[eosio::action]] void rmexpired();
+    [[eosio::action]] void forcesched();
+    [[eosio::action]] void autoplay(eosio::name user, uint64_t gameuuid);
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
@@ -469,22 +492,22 @@ private:
                                          });
     }
     auto prepare_movement(eosio::name user, uint64_t gameuuid, uint32_t steps) {
-        require_auth(user);
-        // 1. check user in the game
-        auto _user = is_sched_user_in_game(user, gameuuid);
-        bool valid_user_game = (_user != _scheduled_users.cend());
-        eosio_assert(valid_user_game, "user not in game");
+        // require_auth(user);
+        // // 1. check user in the game
+        // auto _user = is_sched_user_in_game(user, gameuuid);
+        // bool valid_user_game = (_user != _scheduled_users.cend());
+        // eosio_assert(valid_user_game, "user not in game");
         // 2. check steps is smaller than or equal 6
-        eosio_assert(steps > 0 &&steps <= 6, "invalid steps: > 6");
+        // eosio_assert(steps > 0 &&steps <= 6, "invalid steps: > 6");
         // 3. check steps is equal to given steps
         auto _game = get_game_by_uuid(gameuuid);
-        eosio_assert(_game->status == GAME_START, "bug ? game does not start");
+        // eosio_assert(_game->status == GAME_START, "bug ? game does not start");
         return _game;
     }
 
 private:
     // random number generator
-    struct pcg_state_setseq_64 {
+    struct st_pcg_state_setseq_64 {
         uint64_t uuid;
         uint64_t state = 0x853c49e6748fea9bULL;           // RNG state.  All values are possible.
         uint64_t inc = 0xda3e39cb94b95bdbULL;             // Controls which RNG sequence (stream) is
@@ -502,19 +525,11 @@ private:
             eosio::print(" |");
         }
     };
-    typedef eosio::multi_index<"pcgrnd"_n, pcg_state_setseq_64> pcg32_random_t;
+    typedef eosio::multi_index<"pcgrnd"_n, st_pcg_state_setseq_64> pcg32_random_t;
     pcg32_random_t _rngtbl;
 
     void pcg32_srandom_r(uint64_t initstate, uint64_t initseq) {
         // add a random engine
-        // uint64_t block_num = (uint64_t)tapos_block_num();
-        // uint64_t block_prefix = (uint64_t)tapos_block_prefix();
-        // eosio::print("block number:", block_num, ", ");
-        // eosio::print("block_prefix: ", block_prefix, ", ");
-
-        // initstate = block_num << 32 | block_prefix;
-        // initseq = now();
-
         auto _rng_it = _rngtbl.begin();
         if (_rng_it == _rngtbl.end()) {
             _rng_it = _rngtbl.emplace(get_self(), [&](auto &r) {
@@ -576,9 +591,9 @@ private:
     uint32_t get_rnd_dice_number(uint128_t seed) {
         uint64_t initstate = (uint64_t)(seed >> 64);
         uint64_t initseq = (uint64_t)(seed);
-        eosio::print("initstate: ", initstate, ", ");
-        eosio::print("initseq: ", initseq, ", ");
-        eosio::print("seed: ", seed, ", ");
+        // eosio::print("initstate: ", initstate, ", ");
+        // eosio::print("initseq: ", initseq, ", ");
+        // eosio::print("seed: ", seed, ", ");
 
         pcg32_srandom_r(initstate, initseq);
         return pcg32_boundedrand_r(6) + 1;
@@ -601,37 +616,5 @@ private:
         boost::split(results, memo, [](char c){return c == ':';});
         uint64_t gameuuid = std::stoull(results[1]);
         return gameuuid;
-    }
-
-    // using random number generator from eosbet
-private:
-    struct st_randkey {
-        uint64_t id;
-
-        eosio::public_key key;
-        uint64_t primary_key() const {
-            return id;
-        }
-    };
-
-    struct st_seeds {
-        eosio::checksum256 seed1;
-        eosio::checksum256 seed2;
-    };
-
-public:
-    [[eosio::action]] void newrandkey(eosio::public_key key);
-    eosio::checksum256 tx_hash() {
-        auto s = read_transaction(nullptr, 0);
-        char *tx = (char *)malloc(s);
-        read_transaction(tx, s);
-        eosio::checksum256 _tx_hash = eosio::sha256(tx, s);
-        return _tx_hash;
-    }
-    eosio::checksum256 user_seed_hash(uint32_t user_seed) {
-        // user_seed
-        std::string seed_str = "a";
-        eosio::checksum256 _user_seed_hash = eosio::sha256((char *)&seed_str, seed_str.length());
-        return _user_seed_hash;
     }
 };
