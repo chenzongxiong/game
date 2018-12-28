@@ -423,10 +423,10 @@ void dice::rmexpired() {
     while (it3 != _scheduled_users.end()) {
         if (curr_ts >= it3->expired_ts) {
             it3 = _scheduled_users.erase(it3);
+            count ++;
         } else {
             it3 ++;
         }
-        count ++;
     }
     desc_num_sched_users(count);
     eosio::print("{");
@@ -485,39 +485,52 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
         if (_user->gameuuid == gameuuid) { // in this game
             // this user doesn't toss yet
-            if (_user->user == user && _user->steps == 0 &&
-                _user->expired_ts <= now()) {
+            if (_user->user == user && _user->steps == 0) {
+                // _user->expired_ts >= now()) {
+                if (_user->expired_ts >= now()) {
 
-                uint128_t proof = _user->proof;
-                uint32_t dice_number = get_rnd_dice_number(proof);
+                    uint128_t proof = _user->proof;
+                    uint32_t dice_number = get_rnd_dice_number(proof);
 
-                eosio::print("{");
-                eosio::print("\"dice_number\": ", dice_number, ", ");
-                eosio::print("\"user\": \"", user, "\", ");
-                eosio::print("\"gameuuid\": ", gameuuid, ", ");
-                eosio::print("\"update_ts\": ", now(), ", ");
-                eosio::print("\"toss\": ", true);
-                eosio::print("}");
+                    eosio::print("{");
+                    eosio::print("\"dice_number\": ", dice_number, ", ");
+                    eosio::print("\"user\": \"", user, "\", ");
+                    eosio::print("\"gameuuid\": ", gameuuid, ", ");
+                    eosio::print("\"update_ts\": ", now(), ", ");
+                    eosio::print("\"expired_ts\": ", _user->expired_ts, ", ");
+                    eosio::print("\"expired\":", false, ", ");
+                    eosio::print("\"toss\": ", true);
+                    eosio::print("}");
 
-                _scheduled_users.modify(_user, get_self(), [&](auto &u) {
-                                                               u.steps = dice_number;
-                                                               u.update_ts = now();
-                                                           });
-                once = true;
-            } else {
-                eosio::print("{");
-                eosio::print("\"dice_number\": ", _user->steps, ", ");
-                eosio::print("\"user\": \"", user, "\", ");
-                eosio::print("\"gameuuid\": ", gameuuid, ", ");
-                eosio::print("\"update_ts\": ", now(), ", ");
-                eosio::print("\"toss\": ", false);
-                eosio::print("}");
+                    _scheduled_users.modify(_user, get_self(), [&](auto &u) {
+                                                                   u.steps = dice_number;
+                                                                   u.update_ts = now();
+                                                               });
+                    once = true;
 
+                } else {
+                    eosio::print("{");
+                    eosio::print("\"dice_number\": ", _user->steps, ", ");
+                    eosio::print("\"user\": \"", user, "\", ");
+                    eosio::print("\"gameuuid\": ", gameuuid, ", ");
+                    eosio::print("\"update_ts\": ", now(), ", ");
+                    eosio::print("\"expired_ts\": ", _user->expired_ts, ", ");
+                    eosio::print("\"expired\":", true, ", ");
+                    eosio::print("\"toss\": ", false);
+                    eosio::print("}");
+
+                    once = true;
+                }
             }
         }
         if (once) {
             break;              // this game only executes once
         }
+    }
+    if (! once) {
+        eosio::print("{");
+        eosio::print("\"toss\": ", false);
+        eosio::print("}");
     }
 }
 
@@ -571,13 +584,13 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     bool right_first = true;
     bool up_first = true;
     point pt = point(_game->pos);
-    bool right_overflow = (pt.row + right < pt.row);
+    bool right_overflow = (pt.col + right < pt.col);
     if (! right_overflow) {
         // 1. move right is correct
         // update virtual position
-        pt.row += right;
+        pt.col += right;
         // move left
-        bool left_overflow = (pt.row - left > pt.row);
+        bool left_overflow = (pt.col - left > pt.col);
         if (! left_overflow) {
             // ok
             right_first = true;
@@ -587,10 +600,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     } else {
         // 2. move right is wrong
         // try move left first
-        bool left_overflow = (pt.row - left > pt.row);
+        bool left_overflow = (pt.col - left > pt.col);
         if (! left_overflow) {
-            pt.row -= left;
-            bool right_overflow = (pt.row + right < pt.row);
+            pt.col -= left;
+            bool right_overflow = (pt.col + right < pt.col);
             if (! right_overflow) {
                 // ok
                 right_first = false;
@@ -604,10 +617,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     }
 
     // up    <--> down
-    bool up_overflow = (pt.col - up > pt.col);
+    bool up_overflow = (pt.row - up > pt.row);
     if (! up_overflow) {
-        pt.col -= up;
-        bool down_overflow = (pt.col + down < pt.col);
+        pt.row -= up;
+        bool down_overflow = (pt.row + down < pt.row);
         if (! down_overflow) {
             // ok
             up_first = true;
@@ -615,10 +628,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             eosio_assert(false, "error");
         }
     } else {
-        bool down_overflow  = (pt.col + down < pt.col);
+        bool down_overflow  = (pt.row + down < pt.row);
         if (! down_overflow) {
-            pt.col += down;
-            bool up_overflow = (pt.col - up > pt.col);
+            pt.row += down;
+            bool up_overflow = (pt.row - up > pt.row);
             if (! up_overflow) {
                 // ok
                 up_first = false;
@@ -688,6 +701,15 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         eosio::print("\"row\": ", pt.row, ", ");
         eosio::print("\"col\": ", pt.col, ", ");
         eosio::print("\"update_ts\": ", now(), ", ");
+
+        eosio::print("\"direction\": ");
+        eosio::print("{");
+        eosio::print("\"right\": ", right, ", ");
+        eosio::print("\"left\": ", left, ", ");
+        eosio::print("\"up\": ", up, ",");
+        eosio::print("\"down\": ", down);
+        eosio::print("}, ");
+
         if (_game->status == GAME_OVER) {
             eosio::print("\"last_goal\": ", true, ", ");
         } else {
@@ -722,6 +744,15 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         eosio::print("\"row\": ", pt.row, ", ");
         eosio::print("\"col\": ", pt.col, ", ");
         eosio::print("\"update_ts\": ", now(), ", ");
+
+        eosio::print("\"direction\": ");
+        eosio::print("{");
+        eosio::print("\"right\": ", right, ", ");
+        eosio::print("\"left\": ", left, ", ");
+        eosio::print("\"up\": ", up, ",");
+        eosio::print("\"down\": ", down);
+        eosio::print("}, ");
+
         eosio::print("\"last_goal\": ", false, ", ");
         eosio::print("\"win\": ", false);
         eosio::print("}");
@@ -791,11 +822,15 @@ void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
-    bool overflow = (pt.row + steps < pt.row);
+    bool overflow = (pt.col + steps < pt.col);
     eosio_assert(! overflow, "upper overflow");
-    pt.row = pt.row + steps;
+    pt.col = pt.col + steps;
     bool valid = is_valid_pos(*_game, pt);
-    eosio_assert(valid, "invalid right steps");
+    if (! valid) {
+        _game->debug();
+        eosio::print("right steps: ", steps, ", ");
+        eosio_assert(false, "invalid right steps");
+    }
 
     update_game_pos(*_game, pt);
 }
@@ -805,12 +840,16 @@ void dice::moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
-    bool overflow = (pt.row - steps > pt.row);
+    bool overflow = (pt.col - steps > pt.col);
     eosio_assert(! overflow, "lower overflow");
 
-    pt.row = pt.row - steps;
+    pt.col = pt.col - steps;
     bool valid = is_valid_pos(*_game, pt);
-    eosio_assert(valid, "invalid left steps");
+    if (! valid) {
+        _game->debug();
+        eosio::print("left steps: ", steps, ", ");
+        eosio_assert(false, "invalid left steps");
+    }
 
     update_game_pos(*_game, pt);
 }
@@ -820,11 +859,16 @@ void dice::moveup(eosio::name user, uint64_t gameuuid, uint32_t steps) {
 
     point pt = point(_game->pos);
     // overflow
-    bool overflow = (pt.col - steps > pt.col);
+    bool overflow = (pt.row - steps > pt.row);
     eosio_assert(! overflow, "upper overflow");
 
-    pt.col -= steps;
+    pt.row -= steps;
     bool valid = is_valid_pos(*_game, pt);
+    if (! valid) {
+        _game->debug();
+        eosio::print("up steps: ", steps, ", ");
+        eosio_assert(false, "invlaid up steps");
+    }
     eosio_assert(valid, "invalid up steps");
 
     update_game_pos(*_game, pt);
@@ -834,11 +878,15 @@ void dice::movedown(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     auto _game = prepare_movement(user, gameuuid, steps);
 
     point pt = point(_game->pos);
-    bool overflow = (pt.col + steps < pt.col);
+    bool overflow = (pt.row + steps < pt.row);
     eosio_assert(! overflow, "lower overflow");
-    pt.col += steps;
+    pt.row += steps;
     bool valid = is_valid_pos(*_game, pt);
-    eosio_assert(valid, "invalid down steps");
+    if (! valid) {
+        _game->debug();
+        eosio::print("down steps: ", steps, ", ");
+        eosio_assert(false, "invalid down steps");
+    }
 
     update_game_pos(*_game, pt);
 }
