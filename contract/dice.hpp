@@ -133,11 +133,9 @@ private:
         return false;
     }
     bool is_valid_pos(const game &_game, const point &pt) {
-        // point pt = point(_game.pos);
-        if (pt.row < 0 ||
-            pt.row >= _game.board_width ||
-            pt.col < 0 ||
-            pt.col >= _game.board_height) {
+        if (
+            pt.col > _game.board_width ||
+            pt.row > _game.board_height) {
             return false;
         }
         return true;
