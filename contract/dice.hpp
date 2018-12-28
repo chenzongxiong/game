@@ -30,10 +30,12 @@
  * TODO: help user buy cpu/ram/net
  * DOING: random function review
  * TODO: test multiple actions per transaction
+ *       -- always failed, doesn't find out root cause
  * DONE: generate random number
  * DONE: efficiently schedule, via defered transaction
- * DOING: how to deal with left users if a game is closed ?
+ * DONE: how to deal with left users if a game is closed ?
  * TODO: airdrop
+ * TODO: LOG every transaction
  */
 
 
@@ -80,9 +82,10 @@ private:
     static constexpr eosio::name admin = "arestest1234"_n;
 #endif
 
-    static constexpr uint32_t GAME_CLOSE = 1;
-    static constexpr uint32_t GAME_START = 2;
-    static constexpr uint32_t GAME_OVER = 4;
+    static constexpr uint32_t GAME_CLOSE = 0x01;
+    static constexpr uint32_t GAME_START = 0x02;
+    static constexpr uint32_t GAME_OVER  = 0x04;
+
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
     static constexpr uint32_t TIMEOUT_USERS = 120;
@@ -275,6 +278,18 @@ private:
             eosio::print(" |");
         }
     };
+    TABLE st_shares {
+        uint64_t uuid;
+        eosio::name user;
+        uint64_t gameuuid;
+        uint64_t share;
+        uint64_t acc_share;
+        time_t ts;
+        time_t update_ts;
+        uint64_t primary_key() const {
+            return uuid;
+        }
+    };
     struct st_config {
         uint128_t sender_id;
         uint32_t stop_remove_sched;
@@ -334,6 +349,9 @@ public:
 #endif
 
 private:
+    void jsonify_game(const game &_g);
+    void jsonify_user(const users &_u, uint32_t lineno=-1);
+    void jsonify_hero(const hero &_h);
     typedef eosio::singleton<"config"_n, st_config> config_singleton;
     config_singleton _config;
 
@@ -366,7 +384,9 @@ private:
     winnertbl _winners;
 
     void update_heroes(eosio::name user, uint64_t awards) {
+#if DEBUG
         eosio::print("update heroes");
+#endif
         auto h_it = _heroes.find(user.value);
         if (h_it == _heroes.cend()) {
             _heroes.emplace(get_self(), [&](auto &h) {
@@ -415,6 +435,26 @@ public:
     [[eosio::action]] void rmexpired();
     [[eosio::action]] void forcesched();
     [[eosio::action]] void autoplay(eosio::name user, uint64_t gameuuid);
+    // helper functions
+
+    // get brief information of gameuuid
+    [[eosio::action]] void getbriefmaps(eosio::name user, uint64_t gameuuid, uint32_t status);
+    // 1. number of schedule users
+    // 2. number of waiting users
+    // 3. random pick 20 waiting users
+    // 4. pick latest 20 winners
+    [[eosio::action]] void getmapdetail(eosio::name user, uint64_t gameuuid, uint32_t wait_limit, uint32_t sched_limit, uint32_t hero_limit);
+    // get my position in schedule pool
+    [[eosio::action]] void getmylineno(eosio::name user, uint64_t gameuuid);
+    // get 30 heroes who won most eos tokens
+    [[eosio::action]] void getheroes(eosio::name user, uint64_t gameuuid, uint32_t heroes_limit);
+    // get all users in schedule pool
+    [[eosio::action]] void getmysched(eosio::name user, uint64_t gameuuid, uint32_t sched_limit);
+    // get my detail
+    // 1. get my share on special gameuuid
+    // 2.
+    [[eosio::action]] void getmydetail(eosio::name user, uint64_t gameuuid);
+
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
