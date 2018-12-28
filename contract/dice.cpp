@@ -782,12 +782,7 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
     }
 }
 // action
-void dice::autoplay(eosio::name user, uint64_t gameuuid) {
-    require_auth(user);
-    auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game != _games.cend(), "game not found");
 
-}
 void dice::moveright(eosio::name user, uint64_t gameuuid, uint32_t steps) {
     // DONE check valid user in given game;
     // DONE: check valid steps
@@ -1050,83 +1045,103 @@ void dice::jsonify_hero(const hero &_h) {
     eosio::print("}");
 }
 
-void dice::getmapdetail(eosio::name user, uint64_t gameuuid, uint32_t wait_limit, uint32_t sched_limit, uint32_t hero_limit) {
+void dice::getmapdetail(eosio::name user, uint64_t gameuuid, uint32_t waitlimit, uint32_t schedlimit, uint32_t herolimit) {
     // 1. number of schedule users
     // 2. number of waiting users
     // 3. random pick 20 waiting users
     // 4. pick latest 20 winners
     require_auth(user);
     auto _game = _games.find(gameuuid);
-    eosio_assert(_game == _games.cend(), "not found game");
-    auto wait_users = _waitingpool.get_index<"gameuuid"_n>();
-    auto wait_users_lower_bound = wait_users.lower_bound(gameuuid);
-    auto wait_users_upper_bound = wait_users.upper_bound(gameuuid);
+    eosio_assert(_game != _games.cend(), "not found game");
     eosio::print("{");
     eosio::print("\"game\": ");
     jsonify_game(*_game);
-    // wait users
-    eosio::print("\"waitusers\": [");
-    uint32_t wait_count = 0;
-    if (wait_limit == 0) {
+    eosio::print(", ");
+
+    if (waitlimit == 0) {
         // default return 20 users
-        wait_limit = 20;
+        waitlimit = 20;
     }
+    auto wait_users = _waitingpool.get_index<"gameuuid"_n>();
+    auto wait_users_lower_bound = wait_users.lower_bound(gameuuid);
+    auto wait_users_upper_bound = wait_users.upper_bound(gameuuid);
+    eosio::print("\"waitusers\": [");
+    {
+        // wait users
+        uint32_t wait_count = 0;
 
-    while ((wait_users_lower_bound != wait_users_upper_bound) &&
-           (wait_count < wait_limit)) {
-        // jsonify
-        jsonify_user(*wait_users_lower_bound);
-        wait_count ++;
-        wait_users_lower_bound ++;
-        if (wait_count != wait_limit ||
-            wait_users_lower_bound != wait_users_upper_bound) {
-            eosio::print(", ");
-
+        while ((wait_users_lower_bound != wait_users_upper_bound) &&
+               (wait_count < waitlimit)) {
+            // jsonify
+            if (wait_users_lower_bound->sched_flag == 0) {
+                jsonify_user(*wait_users_lower_bound);
+                wait_count ++;
+                wait_users_lower_bound ++;
+                if (wait_count == waitlimit ||
+                    wait_users_lower_bound == wait_users_upper_bound) {
+                    // do nothing
+                } else {
+                    eosio::print(", ");
+                }
+            } else {
+                wait_users_lower_bound ++;
+            }
         }
     }
     eosio::print("], ");
-    // schedule users
-    auto sched_users = _scheduled_users.get_index<"gameuuid"_n>();
-    auto sched_users_lower_bound = sched_users.lower_bound(gameuuid);
-    auto sched_users_upper_bound = sched_users.upper_bound(gameuuid);
+
     uint32_t sched_count = 0;
-    if (sched_limit == 0) {
-        sched_limit = 20;
+    if (schedlimit == 0) {
+        schedlimit = 20;
     }
     eosio::print("\"schedusers\": [");
-    while ((sched_users_lower_bound != sched_users_upper_bound) &&
-           (sched_count < sched_limit)) {
-        jsonify_user(*sched_users_lower_bound);
-        sched_count ++;
-        sched_users_lower_bound ++;
-        if (sched_count != sched_limit ||
-            sched_users_lower_bound != sched_users_upper_bound) {
-            eosio::print(", ");
+    // schedule users
+    auto sched_users = _scheduled_users.get_index<"gameuuid"_n>();
+    {
+        auto sched_users_lower_bound = sched_users.lower_bound(gameuuid);
+        auto sched_users_upper_bound = sched_users.upper_bound(gameuuid);
+
+        while ((sched_users_lower_bound != sched_users_upper_bound) &&
+               (sched_count < schedlimit)) {
+            jsonify_user(*sched_users_lower_bound);
+            sched_count ++;
+            sched_users_lower_bound ++;
+            if (sched_count == schedlimit ||
+                sched_users_lower_bound == sched_users_upper_bound) {
+                // do nothing
+            } else {
+                eosio::print(", ");
+            }
         }
     }
     eosio::print("], ");
 
-    if (hero_limit == 0) {
-        hero_limit = 20;
+    if (herolimit == 0) {
+        herolimit = 20;
     }
     eosio::print("\"heroes\": [");
     auto heroes_index = _heroes.get_index<"gameuuid"_n>();
+
     auto hero_index_lower_bound = heroes_index.lower_bound(gameuuid);
     auto hero_index_upper_bound = heroes_index.upper_bound(gameuuid);
-    -- hero_index_upper_bound;
-    uint32_t hero_count = 0;
 
-    while ((hero_index_upper_bound != hero_index_lower_bound) &&
-           (hero_count < hero_limit)) {
-        jsonify_hero(*hero_index_upper_bound);
-        hero_count ++;
-        hero_index_upper_bound --;
-        if (hero_count != hero_limit ||
-            hero_index_upper_bound != hero_index_lower_bound) {
-            eosio::print(", ");
+    {
+        uint32_t hero_count = 0;
 
+        while ((hero_index_upper_bound != hero_index_lower_bound) &&
+               (hero_count < herolimit)) {
+            jsonify_hero(*hero_index_lower_bound);
+            hero_count ++;
+            hero_index_lower_bound ++;
+            if (hero_count == herolimit ||
+                hero_index_upper_bound == hero_index_lower_bound) {
+
+            } else {
+                eosio::print(", ");
+            }
         }
     }
+
     eosio::print("]");
     eosio::print("}");
 }
@@ -1158,10 +1173,10 @@ void dice::getmylineno(eosio::name user, uint64_t gameuuid) {
     }
 }
 
-void dice::getheroes(eosio::name user, uint64_t gameuuid, uint32_t hero_limit) {
+void dice::getheroes(eosio::name user, uint64_t gameuuid, uint32_t herolimit) {
     require_auth(user);
-    if (hero_limit == 0) {
-        hero_limit = 30;
+    if (herolimit == 0) {
+        herolimit = 30;
     }
     auto _game = _games.find(gameuuid);
     uint32_t hero_count = 0;
@@ -1173,12 +1188,14 @@ void dice::getheroes(eosio::name user, uint64_t gameuuid, uint32_t hero_limit) {
 
         auto hero_end = _heroes.crend();
         while ((hero_begin != hero_end) &&
-               (hero_count < hero_limit)) {
+               (hero_count < herolimit)) {
             jsonify_hero(*hero_begin);
             hero_begin ++;
             hero_count ++;
-            if (hero_count != hero_limit ||
-                hero_begin != hero_end) {
+            if (hero_count == herolimit ||
+                hero_begin == hero_end) {
+
+            } else {
                 eosio::print(", ");
             }
         }
@@ -1189,27 +1206,27 @@ void dice::getheroes(eosio::name user, uint64_t gameuuid, uint32_t hero_limit) {
         auto heroes_index = _heroes.get_index<"gameuuid"_n>();
         auto hero_index_lower_bound = heroes_index.lower_bound(gameuuid);
         auto hero_index_upper_bound = heroes_index.upper_bound(gameuuid);
-        -- hero_index_upper_bound;
+        // -- hero_index_upper_bound;
         eosio::print("[");
 
         while ((hero_index_upper_bound != hero_index_lower_bound) &&
-               (hero_count < hero_limit)) {
-            jsonify_hero(*hero_index_upper_bound);
+               (hero_count < herolimit)) {
+            jsonify_hero(*hero_index_lower_bound);
             hero_count ++;
-            hero_index_upper_bound --;
-            if (hero_count != hero_limit ||
-                hero_index_upper_bound != hero_index_lower_bound) {
+            hero_index_lower_bound ++;
+            if (hero_count == herolimit ||
+                hero_index_upper_bound == hero_index_lower_bound) {
+            } else {
                 eosio::print(", ");
             }
         }
         eosio::print("]");
     }
 }
-
-void dice::getmysched(eosio::name user, uint64_t gameuuid, uint32_t sched_limit) {
+void dice::getmysched(eosio::name user, uint64_t gameuuid, uint32_t schedlimit) {
     require_auth(user);
-    if (sched_limit == 0) {
-        sched_limit = 20;
+    if (schedlimit == 0) {
+        schedlimit = 20;
     }
     uint32_t sched_count = 0;
 
@@ -1220,14 +1237,16 @@ void dice::getmysched(eosio::name user, uint64_t gameuuid, uint32_t sched_limit)
     eosio::print("[");
 
     while (_scheduled_user_index_lower != _scheduled_user_index_upper &&
-           sched_count < sched_limit) {
+           sched_count < schedlimit) {
 
         jsonify_user(*_scheduled_user_index_lower);
         _scheduled_user_index_lower ++;
         sched_count ++;
 
-        if (_scheduled_user_index_lower != _scheduled_user_index_upper ||
-            sched_count != sched_limit) {
+        if (_scheduled_user_index_lower == _scheduled_user_index_upper ||
+            sched_count == schedlimit) {
+
+        } else {
             eosio::print(", ");
         }
     }
@@ -1338,35 +1357,26 @@ void dice::getmydetail(eosio::name user) {
         }                                                               \
     }                                                                   \
 
-#if DEBUG
-EOSIO_DISPATCH2(dice,           \
-                (version)       \
-                (debug)         \
-                (clear)         \
-                (clear2)        \
-                (delayid)       \
-                (addgame)       \
-                (startgame)     \
-                (move)          \
-                (toss)          \
-                (sendtokens)    \
-                (sched)         \
-                (schedhelper)   \
-                (rmexpired)     \
-                (forcesched)    \
-                (autoplay)      \
+
+EOSIO_DISPATCH2(dice,
+                (version)
+                (debug)
+                (clear)
+                (clear2)
+                (delayid)
+                (addgame)
+                (startgame)
+                (move)
+                (toss)
+                (sendtokens)
+                (sched)
+                (schedhelper)
+                (rmexpired)
+                (forcesched)
+                (getbriefmaps)
+                (getmapdetail)
+                (getmylineno)
+                (getheroes)
+                (getmysched)
+                (getmydetail)
     )
-#else
-EOSIO_DISPATCH2(dice,                           \
-                (addgame)                       \
-                (startgame)                     \
-                (move)                          \
-                (toss)                          \
-                (sendtokens)                    \
-                (sched)                         \
-                (schedhelper)                   \
-                (rmexpired)                     \
-                (forcesched)                    \
-                (autoplay)                      \
-    )
-#endif

@@ -73,12 +73,11 @@ private:
 #if LOCAL
     static constexpr eosio::name dividend_account = "player4"_n;
     static constexpr eosio::name platform = "player3"_n;
-    static constexpr eosio::name lastgoal = "player2"_n;
+    // static constexpr eosio::name lastgoal = "player2"_n;
     static constexpr eosio::name admin = "player1"_n;
 #else
-    static constexpr eosio::name dividend_account = "arestest4321"_n;
-    static constexpr eosio::name platform = "arestest4321"_n;
-    static constexpr eosio::name lastgoal = "arestest4321"_n;
+    static constexpr eosio::name dividend_account = "matroxdivend"_n;
+    static constexpr eosio::name platform = "matroxplform"_n;
     static constexpr eosio::name admin = "arestest1234"_n;
 #endif
 
@@ -278,18 +277,18 @@ private:
             eosio::print(" |");
         }
     };
-    TABLE st_shares {
-        uint64_t uuid;
-        eosio::name user;
-        uint64_t gameuuid;
-        uint64_t share;
-        uint64_t acc_share;
-        time_t ts;
-        time_t update_ts;
-        uint64_t primary_key() const {
-            return uuid;
-        }
-    };
+    // TABLE st_shares {
+    //     uint64_t uuid;
+    //     eosio::name user;
+    //     uint64_t gameuuid;
+    //     uint64_t share;
+    //     uint64_t acc_share;
+    //     time_t ts;
+    //     time_t update_ts;
+    //     uint64_t primary_key() const {
+    //         return uuid;
+    //     }
+    // };
     struct st_config {
         uint128_t sender_id;
         uint32_t stop_remove_sched;
@@ -343,7 +342,7 @@ private:
 
 public:
 
-#ifdef DEBUG
+#if DEBUG
     [[eosio::action]] void version();
     [[eosio::action]] void debug();
 #endif
@@ -384,9 +383,9 @@ private:
     winnertbl _winners;
 
     void update_heroes(eosio::name user, uint64_t awards) {
-#if DEBUG
-        eosio::print("update heroes");
-#endif
+// #if DEBUG
+//         eosio::print("update heroes");
+// #endif
         auto h_it = _heroes.find(user.value);
         if (h_it == _heroes.cend()) {
             _heroes.emplace(get_self(), [&](auto &h) {
@@ -434,7 +433,6 @@ public:
     [[eosio::action]] void delayid(eosio::name user, uint32_t amount);
     [[eosio::action]] void rmexpired();
     [[eosio::action]] void forcesched();
-    [[eosio::action]] void autoplay(eosio::name user, uint64_t gameuuid);
     // helper functions
 
     // get brief information of gameuuid
@@ -443,17 +441,17 @@ public:
     // 2. number of waiting users
     // 3. random pick 20 waiting users
     // 4. pick latest 20 winners
-    [[eosio::action]] void getmapdetail(eosio::name user, uint64_t gameuuid, uint32_t wait_limit, uint32_t sched_limit, uint32_t hero_limit);
+    [[eosio::action]] void getmapdetail(eosio::name user, uint64_t gameuuid, uint32_t waitlimit, uint32_t schedlimit, uint32_t herolimit);
     // get my position in schedule pool
     [[eosio::action]] void getmylineno(eosio::name user, uint64_t gameuuid);
     // get 30 heroes who won most eos tokens
-    [[eosio::action]] void getheroes(eosio::name user, uint64_t gameuuid, uint32_t heroes_limit);
+    [[eosio::action]] void getheroes(eosio::name user, uint64_t gameuuid, uint32_t herolimit);
     // get all users in schedule pool
-    [[eosio::action]] void getmysched(eosio::name user, uint64_t gameuuid, uint32_t sched_limit);
+    [[eosio::action]] void getmysched(eosio::name user, uint64_t gameuuid, uint32_t schedlimit);
     // get my detail
     // 1. get my share on special gameuuid
     // 2.
-    [[eosio::action]] void getmydetail(eosio::name user, uint64_t gameuuid);
+    [[eosio::action]] void getmydetail(eosio::name user);
 
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
