@@ -1037,13 +1037,13 @@ void dice::jsonify_game(const game & _g) {
     eosio::print("\"fee\": ", _g.fee, ", ");
     eosio::print("\"shadow_awards\": ", _g.shadow_awards, ", ");
     point pt = point(_g.pos);
-    eosio::print("\"pos\": (", pt.row, ", ", pt.col, "), ");
+    eosio::print("\"pos\": [", pt.row, ", ", pt.col, "], ");
     eosio::print("\"status\": ", _g.status, ", ");
     eosio::print("\"total_waiting_users\": ", _g.total_number, ", ");
     eosio::print("\"goals\": [");
     for (uint8_t i = 0; i < _g.goals.size(); i ++) {
         point tmp = point(_g.goals[i]);
-        eosio::print("(", tmp.row, ", ", tmp.col, ")");
+        eosio::print("[", tmp.row, ", ", tmp.col, "]");
         if (i + 1 != _g.goals.size()) {
             eosio::print(", ");
         }
@@ -1091,7 +1091,6 @@ void dice::getbriefmaps(eosio::name user, uint64_t gameuuid, uint32_t status) {
 }
 
 void dice::jsonify_user(const users &_u, uint32_t lineno) {
-/// doing
     eosio::print("{");
     eosio::print("\"uuid\": ", _u.uuid, ", ");
     eosio::print("\"gameuuid\": ", _u.gameuuid, ", ");
@@ -1099,7 +1098,6 @@ void dice::jsonify_user(const users &_u, uint32_t lineno) {
     eosio::print("\"no\": ", _u.no, ", ");
     eosio::print("\"user\": ", "\"", _u.user, "\", ");
     eosio::print("\"ts\": ", _u.ts, ", ");
-    // point pt = point(_g.pos);
     eosio::print("\"update_ts\": ", _u.update_ts, ", ");
     eosio::print("\"expired_ts\": ", _u.expired_ts, ", ");
     eosio::print("\"proof\": ", _u.proof, ", ");
