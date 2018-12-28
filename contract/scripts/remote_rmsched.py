@@ -14,7 +14,7 @@ options = ["--url", "http://jungle2.cryptolions.io:80"]
 
 check_schedtbl_cmd = [cleos] + options + ["get", "table", contract, scope, tablename]
 sched_cmd = [cleos] + options + ["push", "action", contract, action, '{}', "-p", admin]
-interval = 10
+interval = 2
 
 
 if __name__ == "__main__":
@@ -31,4 +31,5 @@ if __name__ == "__main__":
                 subprocess.call(sched_cmd)
         else:
             print("empty results")
+        print("========================================")
         time.sleep(interval)
