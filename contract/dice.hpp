@@ -232,6 +232,7 @@ private:
             eosio::print("sched_flag: ", (uint32_t)sched_flag, ", ");
             eosio::print(" |");
         }
+        // EOSLIB_SERIALIZE(users, (uuid)(gameuuid)(steps)(no)(user)(ts)(update_ts)(expired_ts)(proof)(sched_flag))
     };
 
     TABLE hero {
@@ -414,6 +415,29 @@ public:
     [[eosio::action]] void startgame(uint64_t gameuuid);
     [[eosio::action]] void closegame(uint64_t gameuuid);
     [[eosio::action]] void stopgame(uint64_t gameuuid);
+
+    [[eosio::action]] void setloguser(uint64_t uuid,
+                                      uint64_t gameuuid,
+                                      uint32_t steps,
+                                      uint128_t no,
+                                      eosio::name user,
+                                      time_t ts,
+                                      time_t update_ts,
+                                      time_t expired_ts,
+                                      uint128_t proof,
+                                      uint8_t sched_flag);
+    [[eosio::action]] void setloghero(
+        uint64_t uuid,
+        uint64_t gameuuid,
+        eosio::name user,
+        int64_t awards,
+        int64_t acc_awards,
+        uint32_t row,
+        uint32_t col,
+        time_t ts,
+        time_t update_ts);
+
+    // [[eosio::action]] void setloguser(users _user);
 
     [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
     [[eosio::action]] void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);;
