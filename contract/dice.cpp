@@ -398,7 +398,8 @@ void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sende
     auto _user = _waitingpool.find(user_id);
     eosio_assert(_user != _waitingpool.cend(), "bug? not found user");
     _scheduled_users.emplace(get_self(), [&](auto &u) {
-                                             u.uuid = user_id;
+                                             // u.uuid = user_id;
+                                             u.uuid = _scheduled_users.available_primary_key();
                                              u.gameuuid = gameuuid;
                                              u.steps = 0;
                                              u.no = sched_no;
@@ -469,24 +470,30 @@ void dice::forcesched() {
     uint32_t TIMEOUT = 60;
     uint32_t count = 0;
 
-    auto it = _waitingpool.cbegin();
-    auto end = _waitingpool.cend();
+    auto it = _waitingpool.begin();
+    auto next_it = it++;
+    auto end = _waitingpool.end();
 
     while (it != end) {
         time_t update_ts = it->update_ts;
         uint32_t diff = curr_ts - update_ts;
         if (it->sched_flag == 0 && diff >= TIMEOUT) {
             count ++;
-            eosio::print("foce sched waiting users, ");
+            eosio::print("force sched waiting users, ");
             uint64_t user_id = it->uuid;
             uint64_t gameuuid = it->gameuuid;
             time_t ts = it->ts;
-            uint128_t sender_id = 0;
+            uint128_t sender_id = next_sender_id();
             sched(user_id, gameuuid, ts, sender_id);
         } else {
             eosio::print("no need to foce sched waiting users");
         }
-        it ++;
+        it = next_it;
+        if (next_it != end) {
+            next_it ++;
+        } else {
+            break;
+        }
     }
 
     eosio::print("{");
@@ -507,7 +514,7 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
 
     auto end = _scheduled_users.cend();
     bool once = false;
-
+    bool expired = false;
     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
         if (_user->gameuuid == gameuuid) { // in this game
             // this user doesn't toss yet
@@ -533,6 +540,8 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                                                                    u.update_ts = now();
                                                                });
                     once = true;
+                    auto _game = get_game_by_uuid(gameuuid);
+                    incr_game_awards(*_game, _game->fee);
                 } else {
                     // expired, force remove it offline
                     eosio::print("{");
@@ -544,6 +553,7 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                     eosio::print("\"expired\":", true, ", ");
                     eosio::print("\"toss\": ", false);
                     eosio::print("}");
+                    expired = true;
                 }
             } else {
                 eosio::print("{");
@@ -564,9 +574,13 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
         }
     }
     if (! once) {
-        eosio::print("{");
-        eosio::print("\"toss\": ", false);
-        eosio::print("}");
+        if (expired) {
+
+        } else {
+            eosio::print("{");
+            eosio::print("\"toss\": ", false);
+            eosio::print("}");
+        }
     }
 }
 
