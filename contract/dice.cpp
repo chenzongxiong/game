@@ -518,15 +518,44 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     for (auto _user = _scheduled_users.cbegin(); _user != end; _user ++) {
         if (_user->gameuuid == gameuuid) { // in this game
             // this user doesn't toss yet
-            if (_user->user == user && _user->steps == 0) {
-                // _user->expired_ts >= now()) {
-                if (_user->expired_ts >= now()) {
+            if (_user->user == user) {
+                if (_user->steps == 0) {
+                    if (_user->expired_ts >= now()) {
 
-                    uint128_t proof = _user->proof;
-                    uint32_t dice_number = get_rnd_dice_number(proof);
+                        uint128_t proof = _user->proof;
+                        uint32_t dice_number = get_rnd_dice_number(proof);
 
+                        eosio::print("{");
+                        eosio::print("\"dice_number\": ", dice_number, ", ");
+                        eosio::print("\"user\": \"", user, "\", ");
+                        eosio::print("\"gameuuid\": ", gameuuid, ", ");
+                        eosio::print("\"update_ts\": ", now(), ", ");
+                        eosio::print("\"expired_ts\": ", _user->expired_ts, ", ");
+                        eosio::print("\"expired\":", false, ", ");
+                        eosio::print("\"toss\": ", true);
+                        eosio::print("}");
+
+                        _scheduled_users.modify(_user, get_self(), [&](auto &u) {
+                                                                       u.steps = dice_number;
+                                                                       u.update_ts = now();
+                                                                   });
+                        once = true;
+                    } else {
+                        // expired, force remove it offline
+                        eosio::print("{");
+                        eosio::print("\"dice_number\": ", _user->steps, ", ");
+                        eosio::print("\"user\": \"", user, "\", ");
+                        eosio::print("\"gameuuid\": ", gameuuid, ", ");
+                        eosio::print("\"update_ts\": ", now(), ", ");
+                        eosio::print("\"expired_ts\": ", _user->expired_ts, ", ");
+                        eosio::print("\"expired\":", true, ", ");
+                        eosio::print("\"toss\": ", false);
+                        eosio::print("}");
+                        expired = true;
+                    }
+                } else {
                     eosio::print("{");
-                    eosio::print("\"dice_number\": ", dice_number, ", ");
+                    eosio::print("\"dice_number\": ", _user->steps, ", ");
                     eosio::print("\"user\": \"", user, "\", ");
                     eosio::print("\"gameuuid\": ", gameuuid, ", ");
                     eosio::print("\"update_ts\": ", now(), ", ");
@@ -534,50 +563,25 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                     eosio::print("\"expired\":", false, ", ");
                     eosio::print("\"toss\": ", true);
                     eosio::print("}");
-
-                    _scheduled_users.modify(_user, get_self(), [&](auto &u) {
-                                                                   u.steps = dice_number;
-                                                                   u.update_ts = now();
-                                                               });
                     once = true;
-                    auto _game = get_game_by_uuid(gameuuid);
-                    incr_game_awards(*_game, _game->fee);
-                } else {
-                    // expired, force remove it offline
-                    eosio::print("{");
-                    eosio::print("\"dice_number\": ", _user->steps, ", ");
-                    eosio::print("\"user\": \"", user, "\", ");
-                    eosio::print("\"gameuuid\": ", gameuuid, ", ");
-                    eosio::print("\"update_ts\": ", now(), ", ");
-                    eosio::print("\"expired_ts\": ", _user->expired_ts, ", ");
-                    eosio::print("\"expired\":", true, ", ");
-                    eosio::print("\"toss\": ", false);
-                    eosio::print("}");
-                    expired = true;
                 }
-            } else {
-                eosio::print("{");
-                eosio::print("\"dice_number\": ", _user->steps, ", ");
-                eosio::print("\"user\": \"", user, "\", ");
-                eosio::print("\"gameuuid\": ", gameuuid, ", ");
-                eosio::print("\"update_ts\": ", now(), ", ");
-                eosio::print("\"expired_ts\": ", _user->expired_ts, ", ");
-                eosio::print("\"expired\":", false, ", ");
-                // eosio::print("\"toss\": ", false);
-                eosio::print("\"toss\": ", true);
-                eosio::print("}");
-                once = true;
             }
         }
-        if (once) {
+        if (once || expired) {
             break;              // this game only executes once
         }
     }
     if (! once) {
-        if (expired) {
-
-        } else {
+        if (! expired) {
             eosio::print("{");
+            eosio::print("\"dice_number\": ", -1, ", ");
+            eosio::print("\"user\": \"", user, "\", ");
+            eosio::print("\"gameuuid\": ", gameuuid, ", ");
+            eosio::print("\"update_ts\": ", -1, ", ");
+            eosio::print("\"expired_ts\": ", -1, ", ");
+            eosio::print("\"gammeuuid\": ", gameuuid, ", ");
+            eosio::print("\"msg\": ", "\"user not found\"", ", ");
+            eosio::print("\"expired\": ", NULL, ", ");
             eosio::print("\"toss\": ", false);
             eosio::print("}");
         }
@@ -744,8 +748,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                          w.col = pt.col;
                                          w.acc_awards = 0;
                                    });
-        desc_game_awards(*_game, _game->awards);
-        desc_game_shadow_awards(*_game, _game->awards);
         close_game(*_game);
 
         eosio::print("{");
@@ -754,11 +756,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         eosio::print("\"awards\": ", _game->awards, ", ");
         eosio::print("\"origin_pos\": [", origin_pt.row, ", ", origin_pt.col, "], ");
         eosio::print("\"current_pos\": [", pt.row, ", ", pt.col, "], ");
-
-        // eosio::print("\"row\": ", pt.row, ", ");
-        // eosio::print("\"col\": ", pt.col, ", ");
         eosio::print("\"update_ts\": ", now(), ", ");
-
         eosio::print("\"direction\": ");
         eosio::print("{");
         eosio::print("\"right_first\":", right_first, ", ");
@@ -780,6 +778,9 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
 
         eosio::print("}");
 
+        desc_game_awards(*_game, _game->awards);
+        desc_game_shadow_awards(*_game, _game->awards);
+
         // TODO: how to deal with the rest people when game is closed
         // remove them from waitting pool and the last winner gets all prize
         if (_game->status == GAME_OVER) {
@@ -797,6 +798,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                          });
             desc_game_shadow_awards(*_game, _game->shadow_awards);
         }
+
     } else {
         point pt = point(_game->pos);
         eosio::print("{");
@@ -1092,6 +1094,8 @@ void dice::distribute(const game& _game,
             inner_transfer(get_self(), part, participants_amount);
         }
     }
+
+    incr_game_awards(_game, next_goal_amount);
 }
 
 void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount) {
