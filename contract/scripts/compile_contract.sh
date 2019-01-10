@@ -12,6 +12,7 @@ CONTRACTSPATH="$( pwd -P )"
 mkdir -p ./compiled_contracts/dice
 mkdir -p ./compiled_contracts/empty
 mkdir -p ./compiled_contracts/challenge
+mkdir -p ./compiled_contracts/matr0x
 
 # COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
 # cd $COMPILEDCONTRACTSPATH
@@ -27,6 +28,11 @@ COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
 cd $COMPILEDCONTRACTSPATH
 eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
 
+
+cd $CONTRACTSPATH
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
+cd $COMPILEDCONTRACTSPATH
+eosio-cpp -o matr0x.wasm $CONTRACTSPATH/matr0x/matr0x.cpp --abigen
 
 # # unlock the wallet, ignore error if already unlocked
 # if [ ! -z $3 ]; then cleos wallet unlock -n $3 --password $4 || true; fi
