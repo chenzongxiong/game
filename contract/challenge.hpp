@@ -1,14 +1,23 @@
 #pragma once
 
 #include <eosiolib/eosio.hpp>
+#include <eosiolib/asset.hpp>
 #include <eosiolib/time.hpp>
+
+struct eosio_token_transfer {
+    eosio::name from;
+    eosio::name to;
+    eosio::asset quantity;
+    std::string memo;
+};
 
 class [[eosio::contract]] challenge : public eosio::contract {
 public:
     using contract::contract;
     challenge (eosio::name receiver, eosio::name code, eosio::datastream<const char*> ds) : eosio::contract(receiver, code, ds),
         registrations(receiver, code.value),
-        games(receiver, code.value)
+        games(receiver, code.value),
+        heros(receiver, code.value)
     {}
 
 
@@ -61,6 +70,7 @@ private:
     TABLE st_hero {
         uint64_t id;
         uint64_t game_id;
+        eosio::name user;
         uint64_t awards_eos;
         uint64_t awards_token;
 
@@ -72,6 +82,9 @@ private:
         }
         uint64_t by_awards_eos() const {
             return awards_eos;
+        }
+        uint64_t by_user() const {
+            return user.name;
         }
     };
 public:
@@ -87,14 +100,25 @@ public:
                                > game_table;
     game_table games;
 
+    typdef eosio::multi_index<"hero"_n, st_hero>
+        hero_table;
+
+    hero_table heroes;
+
 public:
     [[eosio::action]] void enroll(eosio::name org, eosio::name game, uint64_t min_duration, uint64_t max_duration);
-    [[eosio::action]] void startgame(eosio::name user,eosio::name org, eosio::name game,
-                                     uint64_t target, uint64_t bet, eosio::name referuser, uint64_t ts);
+
+    [[eosio::action]] void startgame(eosio::name user);
+
     [[eosio::action]] void endgame(eosio::name user, eosio::name org, eosio::name game, uint64_t target,
                                    uint64_t achievement, uint64_t duration, eosio::name referuser, uint64_t ts);
+
     [[eosio::action]] void sendtokens(eosio::name user);
 
 private:
+    void _startgame(eosio::name user,eosio::name org, eosio::name game,
+                    uint64_t target, uint64_t bet, eosio::name referuser, uint64_t ts);
+
     auto get_registration(eosio::name org, eosio::name game);
+    std::map<std::string, std::string> parse_memo(std::string memo);
 };
