@@ -23,14 +23,16 @@ mkdir -p ./compiled_contracts/matr0x
 # cd $COMPILEDCONTRACTSPATH
 # eosio-cpp -o empty.wasm $CONTRACTSPATH/empty.cpp --abigen
 
-cd $CONTRACTSPATH
-COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
-cd $COMPILEDCONTRACTSPATH
-eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
+# cd $CONTRACTSPATH
+# COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
+# cd $COMPILEDCONTRACTSPATH
+
+# eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen -I=/usr/local/include
+# eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
 
 
 cd $CONTRACTSPATH
-COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/matr0x"
 cd $COMPILEDCONTRACTSPATH
 eosio-cpp -o matr0x.wasm $CONTRACTSPATH/matr0x/matr0x.cpp --abigen
 
