@@ -13,19 +13,19 @@ mkdir -p ./compiled_contracts/dice
 mkdir -p ./compiled_contracts/empty
 mkdir -p ./compiled_contracts/challenge
 
-# COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
-# cd $COMPILEDCONTRACTSPATH
-# eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
+cd $COMPILEDCONTRACTSPATH
+eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
 
 # cd $CONTRACTSPATH
 # COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/empty"
 # cd $COMPILEDCONTRACTSPATH
 # eosio-cpp -o empty.wasm $CONTRACTSPATH/empty.cpp --abigen
 
-cd $CONTRACTSPATH
-COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
-cd $COMPILEDCONTRACTSPATH
-eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
+# cd $CONTRACTSPATH
+# COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
+# cd $COMPILEDCONTRACTSPATH
+# eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
 
 
 # # unlock the wallet, ignore error if already unlocked

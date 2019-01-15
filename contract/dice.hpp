@@ -34,14 +34,14 @@
  * DONE: generate random number
  * DONE: efficiently schedule, via defered transaction
  * DONE: how to deal with left users if a game is closed ?
- * TODO: airdrop
- * TODO: LOG every transaction
+ * DONE: airdrop
+ * DONE: LOG every transaction
  */
 
 
 #define DEBUG 1
 
-#define LOCAL 0
+#define LOCAL 1
 
 class [[eosio::contract]] dice : public eosio::contract {
 
@@ -73,12 +73,13 @@ private:
 #if LOCAL
     static constexpr eosio::name dividend_account = "player4"_n;
     static constexpr eosio::name platform = "player3"_n;
-    // static constexpr eosio::name lastgoal = "player2"_n;
-    static constexpr eosio::name admin = "player1"_n;
+    static constexpr eosio::name admin = "matrixcasino"_n;
+    static constexpr eosio::name token_account = "matrixtokens"_n;
 #else
     static constexpr eosio::name dividend_account = "matroxdivend"_n;
     static constexpr eosio::name platform = "matroxplform"_n;
-    static constexpr eosio::name admin = "arestest1234"_n;
+    static constexpr eosio::name admin = "matrixcasino"_n;
+    static constexpr eosio::name token_account = "matrixtokens"_n;
 #endif
 
     static constexpr uint32_t GAME_CLOSE = 0x01;
@@ -88,7 +89,6 @@ private:
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
     static constexpr uint32_t TIMEOUT_USERS = 120;
-    // static constexpr uint32_t TIMEOUT_USERS = 172800;
     static constexpr uint32_t SCHED_TIMEOUT = 120;
 
     struct point {
@@ -293,7 +293,8 @@ private:
         uint32_t stop_remove_sched;
         uint64_t sched_no;
         uint64_t num_sched_users = 0;
-
+        uint32_t token_exchange_rate = 1;
+        uint32_t airdrop_flag = 0;
         void debug() const {
             eosio::print(">| ");
             eosio::print("sender_id: ", sender_id, ", ");
@@ -338,7 +339,18 @@ private:
             return cfg.num_sched_users;
         }
     }
-
+    bool check_airdrop_flag() {
+        auto cfg = _config.get_or_default({});
+        if (cfg.airdrop_flag == 1) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    uint32_t get_token_exchange_rate() {
+        auto cfg = _config.get_or_default({});
+        return cfg.token_exchange_rate;
+    }
 public:
 
 #if DEBUG
@@ -437,8 +449,6 @@ public:
         time_t ts,
         time_t update_ts);
 
-    // [[eosio::action]] void setloguser(users _user);
-
     [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
     [[eosio::action]] void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);;
     [[eosio::action]] void schedhelper(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);
@@ -475,6 +485,8 @@ public:
     // 2.
     [[eosio::action]] void getmydetail(eosio::name user);
 
+    [[eosio::action]] void setrate(uint64_t rate);
+    [[eosio::action]] void setairdrop(uint32_t flag);
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
@@ -677,4 +689,5 @@ private:
         uint64_t gameuuid = std::stoull(results[1]);
         return gameuuid;
     }
+
 };
