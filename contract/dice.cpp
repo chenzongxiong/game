@@ -313,6 +313,19 @@ void dice::enter(eosio::name user) {
                                                  u.sched_flag = 0;
                                                  u.expired_ts = -1;
                                              });
+            // airdrop
+            if (check_airdrop_flag()) {
+                uint32_t rate = get_token_exchange_rate();
+                uint64_t amt = data.quantity.amount * rate;
+                eosio::symbol sym = eosio::symbol("MYEOS", 6);
+                eosio::asset airdrop_amt = eosio::asset(amt, sym);
+                std::string memo = std::string("User id: ") + std::to_string(user_id) + std::string(" -- Enjoy airdrop! Play: matr0x");
+                eosio::action(
+                    eosio::permission_level{_self, "active"_n},
+                    token_account, "transfer"_n,
+                    std::make_tuple(_self, data.from, airdrop_amt, memo)
+                    ).send();
+            }
             // xxxx
             uint128_t sender_id = next_sender_id();
 
@@ -1576,6 +1589,19 @@ void dice::setloghero(
 
 }
 
+void dice::setrate(uint64_t rate) {
+    auto cfg = _config.get_or_default({});
+    cfg.token_exchange_rate = rate;
+    if (cfg.token_exchange_rate == 0) {
+        cfg.token_exchange_rate = 1;
+    }
+    _config.set(cfg, get_self());
+}
+void dice::setairdrop(uint32_t flag) {
+    auto cfg = _config.get_or_default({});
+    cfg.airdrop_flag = flag;
+    _config.set(cfg, get_self());
+}
 
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
@@ -1630,5 +1656,7 @@ EOSIO_DISPATCH2(dice,
                 (getmysched)
                 (getmydetail)
                 (setloguser)
+                (setrate)
+                (setairdrop)
                 // (dispatchlog)
     )
