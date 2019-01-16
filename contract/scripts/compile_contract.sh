@@ -14,9 +14,9 @@ mkdir -p ./compiled_contracts/empty
 mkdir -p ./compiled_contracts/challenge
 mkdir -p ./compiled_contracts/matr0x
 
-# COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
-# cd $COMPILEDCONTRACTSPATH
-# eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
+cd $COMPILEDCONTRACTSPATH
+eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
 
 # cd $CONTRACTSPATH
 # COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/empty"
@@ -28,8 +28,6 @@ mkdir -p ./compiled_contracts/matr0x
 # cd $COMPILEDCONTRACTSPATH
 
 # eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen -I=/usr/local/include
-# eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
-
 
 cd $CONTRACTSPATH
 COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/matr0x"
