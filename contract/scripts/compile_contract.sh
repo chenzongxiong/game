@@ -5,28 +5,35 @@ set -o errexit
 # PATH="$PATH:/opt/eosio/bin"
 
 CONTRACTSPATH="$( pwd -P )"
-cleos='docker exec -it eos /opt/eosio/bin/cleos --url http://127.0.0.1:8888'
+
+# cleos='docker exec -it eos /opt/eosio/bin/cleos --url http://127.0.0.1:8888'
 # make new directory for compiled contract files
-# mkdir -p ./compiled_contracts
 
 mkdir -p ./compiled_contracts/dice
+mkdir -p ./compiled_contracts/empty
+mkdir -p ./compiled_contracts/challenge
+mkdir -p ./compiled_contracts/matr0x
 
-COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
-cd $COMPILEDCONTRACTSPATH
-eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
+# COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/dice"
+# cd $COMPILEDCONTRACTSPATH
+# eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
+
+# cd $CONTRACTSPATH
+# COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/empty"
+# cd $COMPILEDCONTRACTSPATH
+# eosio-cpp -o empty.wasm $CONTRACTSPATH/empty.cpp --abigen
 
 cd $CONTRACTSPATH
-COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/empty"
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
 cd $COMPILEDCONTRACTSPATH
-eosio-cpp -o empty.wasm $CONTRACTSPATH/empty.cpp --abigen
-# # compile smart contract to wast and abi files
-# (
-#   eosiocpp -o "$COMPILEDCONTRACTSPATH/$1/$1.wast" "$CONTRACTSPATH/$1/$1.cpp" &&
-#   eosiocpp -g "$COMPILEDCONTRACTSPATH/$1/$1.abi" "$CONTRACTSPATH/$1/$1.cpp"
-# ) &&
+eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
 
 
-# # set (deploy) compiled contract to blockchain
-# unlock the wallet, ignore error if already unlocked
-if [ ! -z $3 ]; then cleos wallet unlock -n $3 --password $4 || true; fi
-# $cleos set contract $2 "$COMPILEDCONTRACTSPATH/$1/" --permission $2
+cd $CONTRACTSPATH
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
+cd $COMPILEDCONTRACTSPATH
+eosio-cpp -o matr0x.wasm $CONTRACTSPATH/matr0x/matr0x.cpp --abigen
+
+# # unlock the wallet, ignore error if already unlocked
+# if [ ! -z $3 ]; then cleos wallet unlock -n $3 --password $4 || true; fi
+# # $cleos set contract $2 "$COMPILEDCONTRACTSPATH/$1/" --permission $2
