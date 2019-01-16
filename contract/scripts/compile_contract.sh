@@ -26,11 +26,11 @@ eosio-cpp -o dice.wasm $CONTRACTSPATH/dice.cpp --abigen -I=/usr/local/include
 # cd $CONTRACTSPATH
 # COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
 # cd $COMPILEDCONTRACTSPATH
-# eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen
 
+# eosio-cpp -o challenge.wasm $CONTRACTSPATH/challenge.cpp --abigen -I=/usr/local/include
 
 cd $CONTRACTSPATH
-COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/challenge"
+COMPILEDCONTRACTSPATH="$( pwd -P )/compiled_contracts/matr0x"
 cd $COMPILEDCONTRACTSPATH
 eosio-cpp -o matr0x.wasm $CONTRACTSPATH/matr0x/matr0x.cpp --abigen
 
