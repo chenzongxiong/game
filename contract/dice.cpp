@@ -315,16 +315,28 @@ void dice::enter(eosio::name user) {
                                              });
             // airdrop
             if (check_airdrop_flag()) {
+                // check balance
                 uint32_t rate = get_token_exchange_rate();
-                uint64_t amt = data.quantity.amount * rate;
+                uint64_t amt = data.quantity.amount * rate * 100;
                 eosio::symbol sym = eosio::symbol("MYEOS", 6);
                 eosio::asset airdrop_amt = eosio::asset(amt, sym);
-                std::string memo = std::string("User id: ") + std::to_string(user_id) + std::string(" -- Enjoy airdrop! Play: matr0x");
-                eosio::action(
-                    eosio::permission_level{_self, "active"_n},
-                    token_account, "transfer"_n,
-                    std::make_tuple(_self, data.from, airdrop_amt, memo)
-                    ).send();
+
+                accounts acnts(token_account, _self.value);
+                auto my_account_itr = acnts.find(sym.code().raw());
+                if (my_account_itr != acnts.cend() &&
+                    my_account_itr->balance.amount >= amt){
+
+                    std::string memo = std::string("user ") + data.from.to_string() + std::string(" -- Enjoy airdrop! Play: matr0x");
+                    eosio::action(
+                        eosio::permission_level{_self, "active"_n},
+                        token_account, "transfer"_n,
+                        std::make_tuple(_self, data.from, airdrop_amt, memo)
+                        ).send();
+                } else {
+                    auto cfg = _config.get_or_default({});
+                    cfg.airdrop_flag = 0;
+                    _config.set(cfg, get_self());
+                }
             }
             // xxxx
             uint128_t sender_id = next_sender_id();
@@ -810,6 +822,8 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                              w.acc_awards = 0;
                                          });
             desc_game_shadow_awards(*_game, _game->shadow_awards);
+            // TODO: clear all schedule users
+
         }
 
     } else {

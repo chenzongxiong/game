@@ -71,13 +71,13 @@ private:
     static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
 
 #if LOCAL
-    static constexpr eosio::name dividend_account = "player4"_n;
-    static constexpr eosio::name platform = "player3"_n;
+    static constexpr eosio::name dividend_account = "matroxdivend"_n;
+    static constexpr eosio::name platform = "matrixmaster"_n;
     static constexpr eosio::name admin = "matrixcasino"_n;
     static constexpr eosio::name token_account = "matrixtokens"_n;
 #else
     static constexpr eosio::name dividend_account = "matroxdivend"_n;
-    static constexpr eosio::name platform = "matroxplform"_n;
+    static constexpr eosio::name platform = "matrixmaster"_n;
     static constexpr eosio::name admin = "matrixcasino"_n;
     static constexpr eosio::name token_account = "matrixtokens"_n;
 #endif
@@ -88,8 +88,8 @@ private:
 
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    static constexpr uint32_t TIMEOUT_USERS = 120;
-    static constexpr uint32_t SCHED_TIMEOUT = 120;
+    static constexpr uint32_t TIMEOUT_USERS = 60;
+    static constexpr uint32_t SCHED_TIMEOUT = 60;
 
     struct point {
         uint32_t row;
@@ -351,6 +351,12 @@ private:
         auto cfg = _config.get_or_default({});
         return cfg.token_exchange_rate;
     }
+    struct [[eosio::table]] account {
+        eosio::asset    balance;
+        uint64_t primary_key()const { return balance.symbol.code().raw(); }
+    };
+    typedef eosio::multi_index< "accounts"_n, account > accounts;
+
 public:
 
 #if DEBUG
