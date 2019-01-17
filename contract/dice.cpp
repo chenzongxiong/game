@@ -124,333 +124,51 @@ void dice::rmexpired() {
     eosio::print("\"count\":", count, ", ");
     eosio::print("\"msg\": \"remove expired user successfully\"");
     eosio::print("}");
-
 }
 
-void dice::forcesched() {
-    require_auth(admin);
+// void dice::forcesched() {
+//     require_auth(admin);
 
-    time_t curr_ts = now();
-    uint32_t TIMEOUT = 60;
-    uint32_t count = 0;
+//     time_t curr_ts = now();
+//     uint32_t TIMEOUT = 60;
+//     uint32_t count = 0;
 
-    auto it = _waitingpool.begin();
-    auto next_it = it++;
-    auto end = _waitingpool.end();
+//     auto it = _waitingpool.begin();
+//     auto next_it = it++;
+//     auto end = _waitingpool.end();
 
-    while (it != end) {
-        time_t update_ts = it->update_ts;
-        uint32_t diff = curr_ts - update_ts;
-        if (it->sched_flag == 0 && diff >= TIMEOUT) {
-            count ++;
-            eosio::print("force sched waiting users, ");
-            uint64_t user_id = it->uuid;
-            uint64_t gameuuid = it->gameuuid;
-            time_t ts = it->ts;
-            uint128_t sender_id = next_sender_id();
-            sched(user_id, gameuuid, ts, sender_id);
-        } else {
-            eosio::print("no need to foce sched waiting users");
-        }
-        it = next_it;
-        if (next_it != end) {
-            next_it ++;
-        } else {
-            break;
-        }
-    }
+//     while (it != end) {
+//         time_t update_ts = it->update_ts;
+//         uint32_t diff = curr_ts - update_ts;
+//         if (it->sched_flag == 0 && diff >= TIMEOUT) {
+//             count ++;
+//             eosio::print("force sched waiting users, ");
+//             uint64_t user_id = it->uuid;
+//             uint64_t gameuuid = it->gameuuid;
+//             time_t ts = it->ts;
+//             uint128_t sender_id = next_sender_id();
+//             sched(user_id, gameuuid, ts, sender_id);
+//         } else {
+//             eosio::print("no need to foce sched waiting users");
+//         }
+//         it = next_it;
+//         if (next_it != end) {
+//             next_it ++;
+//         } else {
+//             break;
+//         }
+//     }
 
-    eosio::print("{");
-    eosio::print("\"count\": ", count, ", ");
-    eosio::print("\"msg\": \"forcesched successfully.\"");
-    eosio::print("}");
+//     eosio::print("{");
+//     eosio::print("\"count\": ", count, ", ");
+//     eosio::print("\"msg\": \"forcesched successfully.\"");
+//     eosio::print("}");
 
 
-}
-
-void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
-    require_auth(admin);
-
-    auto _game = get_game_by_uuid(gameuuid);
-    eosio_assert(_game != _games.cend(), "not found st_game");
-
-    auto _winner = is_won_user_in_game(user, gameuuid);
-    eosio_assert(_winner != _winners.cend(), "winner not in st_game");
-
-    std::vector<eosio::name> participants;
-
-    for (auto _u : _waitingpool) {
-        participants.push_back(_u.user);
-    }
-    for (auto _u : _scheduled_users) {
-        participants.push_back(_u.user);
-    }
-
-    distribute(*_game,
-               user,
-               participants,
-               _winner->awards);
-    uint64_t real_awards = _winner->awards*WINNER_PERCENT;
-    update_heroes(user, real_awards);
-
-    eosio::transaction tx {};
-    tx.actions.emplace_back(eosio::permission_level{_self, "active"_n},
-                            get_self(), "setloghero"_n,
-                            std::make_tuple(_winner->uuid,
-                                            _winner->gameuuid,
-                                            _winner->user,
-                                            _winner->awards,
-                                            _winner->acc_awards,
-                                            _winner->row,
-                                            _winner->col,
-                                            _winner->ts,
-                                            _winner->update_ts));
-    tx.delay_sec = 0;
-    tx.send(next_sender_id(), _self, false);
-
-    _winners.erase(_winner);
-
-    if (_game->status == GAME_OVER) {
-        // clear all waiting users in this st_game
-        const uint32_t action_per_txn = 10;
-        auto it2 = _waitingpool.begin();
-        eosio::transaction txn {};
-        while (it2 != _waitingpool.end()) {
-            if (it2->gameuuid == _game->uuid) {
-
-                txn.actions.emplace_back(eosio::permission_level{_self, "active"_n},
-                                         get_self(), "setloguser"_n,
-                                         std::make_tuple(it2->uuid,
-                                                         it2->gameuuid,
-                                                         it2->steps,
-                                                         it2->no,
-                                                         it2->user,
-                                                         it2->ts,
-                                                         it2->update_ts,
-                                                         it2->expired_ts,
-                                                         it2->proof,
-                                                         it2->sched_flag));
-                if (txn.actions.size() >= action_per_txn) {
-                    uint128_t sender_id = next_sender_id();
-                    txn.delay_sec = 1;
-                    txn.send(sender_id, _self, false);
-                    txn.actions.clear();
-                }
-
-                it2 = _waitingpool.erase(it2);
-
-            } else {
-                it2 ++;
-            }
-        }
-        // clear all sched users in this st_game
-        txn.actions.clear();
-        auto it3 = _scheduled_users.begin();
-        while (it3 != _scheduled_users.end()) {
-            if (it3->gameuuid == _game->uuid) {
-                txn.actions.emplace_back(eosio::permission_level{_self, "active"_n},
-                                         get_self(), "setloguser"_n,
-                                         std::make_tuple(it3->uuid,
-                                                         it3->gameuuid,
-                                                         it3->steps,
-                                                         it3->no,
-                                                         it3->user,
-                                                         it3->ts,
-                                                         it3->update_ts,
-                                                         it3->expired_ts,
-                                                         it3->proof,
-                                                         it3->sched_flag));
-                if (txn.actions.size() >= action_per_txn) {
-                    uint128_t sender_id = next_sender_id();
-                    txn.delay_sec = 1;
-                    txn.send(sender_id, _self, false);
-                    txn.actions.clear();
-                }
-
-                it3 = _scheduled_users.erase(it3);
-            } else {
-                it3 ++;
-            }
-        }
-    }
-}
-
-void dice::setrate(uint64_t rate) {
-    require_auth(admin);
-    auto cfg = _config.get_or_default({});
-    cfg.token_exchange_rate = rate;
-    if (cfg.token_exchange_rate == 0) {
-        cfg.token_exchange_rate = 1;
-    }
-    _config.set(cfg, get_self());
-}
-
-void dice::setairdrop(uint32_t flag) {
-    require_auth(admin);
-    auto cfg = _config.get_or_default({});
-    cfg.airdrop_flag = flag;
-    _config.set(cfg, get_self());
-}
-
-void dice::showconfig() {
-    require_auth(admin);
-    auto cfg = _config.get_or_default({});
-    eosio::print("sender id: ", cfg.sender_id, ", ");
-    eosio::print("stop_remove_sched: ", cfg.stop_remove_sched, ", ");
-    eosio::print("sched_no: ", cfg.sched_no, ", ");
-    eosio::print("num_sched_users: ", cfg.num_sched_users, ", ");
-    eosio::print("token_exchange_rate: ", cfg.token_exchange_rate, ", ");
-    eosio::print("airdrop_flag: ", cfg.airdrop_flag, ", ");
-}
-
-void dice::setloguser(uint64_t uuid, uint64_t gameuuid, uint32_t steps,
-                      uint128_t no, eosio::name user, time_t ts, time_t update_ts,
-                      time_t expired_ts, uint128_t proof, uint8_t sched_flag) {
-    require_auth(_self);
-}
-
-void dice::setloghero(
-        uint64_t uuid,
-        uint64_t gameuuid,
-        eosio::name user,
-        int64_t awards,
-        int64_t acc_awards,
-        uint32_t row,
-        uint32_t col,
-        time_t ts,
-        time_t update_ts) {
-    require_auth(_self);
-}
-/********************************************************************************
- * Users actions
- ********************************************************************************/
-void dice::enter(eosio::name user) {
-    /**
-     * NOTE: a user can enter st_game multiple times
-     * 1. tranfer fee
-     * 2. put him/her in waiting room
-     * 3. increase shadow awards pool
-     * 4. schedule the user to schedule table
-     */
-    eosio_assert(user == "eosio.token"_n, "fake tokens");
-    auto data = eosio::unpack_action_data<eosio_token_transfer>();
-    if (data.from != get_self()) {
-        eosio_assert(data.to == get_self(), "didn't transfer tokens to me");
-
-        eosio_assert(data.quantity.is_valid(), "invalid quantity");
-        eosio_assert(data.quantity.amount > 0, "must transfer positive quantity");
-        eosio_assert(data.quantity.symbol == eosio::symbol("EOS", 4), "symbol precision mismatch");
-        eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
-
-        uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
-        auto _game = get_game_by_uuid(gameuuid);
-        eosio_assert(_game != _games.cend(), "not found st_game.");
-        eosio_assert(_game->status != GAME_OVER, "st_game is over");
-
-        if (data.quantity.amount >= _game->fee) { // pay enough fee
-            // check st_game
-            incr_game_shadow_awards(*_game, _game->fee);
-
-            uint64_t user_id = _waitingpool.available_primary_key();
-
-            _waitingpool.emplace(get_self(), [&](auto &u) {
-                                                 u.uuid = user_id;
-                                                 u.gameuuid = _game->uuid;
-                                                 u.no = -1;
-                                                 u.user = data.from;
-                                                 u.steps = 0;
-                                                 u.ts = now();
-                                                 u.update_ts = now();
-                                                 u.sched_flag = 0;
-                                                 u.expired_ts = -1;
-                                             });
-            // airdrop
-            if (check_airdrop_flag()) {
-                // check balance
-                uint32_t rate = get_token_exchange_rate();
-                uint64_t amt = data.quantity.amount * rate * 100;
-                eosio::symbol sym = eosio::symbol("MYEOS", 6);
-                eosio::asset airdrop_amt = eosio::asset(amt, sym);
-
-                accounts acnts(token_account, _self.value);
-                auto my_account_itr = acnts.find(sym.code().raw());
-                if (my_account_itr != acnts.cend() &&
-                    my_account_itr->balance.amount >= amt){
-
-                    std::string memo = std::string("User: ") + data.from.to_string() + std::string(" -- Enjoy airdrop! Play: matr0x");
-                    eosio::action(
-                        eosio::permission_level{_self, "active"_n},
-                        token_account, "transfer"_n,
-                        std::make_tuple(_self, data.from, airdrop_amt, memo)
-                        ).send();
-                } else {
-                    auto cfg = _config.get_or_default({});
-                    cfg.airdrop_flag = 0;
-                    _config.set(cfg, get_self());
-                }
-            }
-            // xxxx
-            uint128_t sender_id = next_sender_id();
-
-            eosio::transaction txn {};
-            txn.actions.emplace_back(
-                eosio::permission_level{_self, "active"_n},
-                get_self(), "schedhelper"_n,
-                std::make_tuple(user_id, gameuuid, now(), sender_id)
-                );
-            // delay 5 seconds
-            uint32_t delayed = 5;
-            txn.delay_sec = delayed;
-            txn.send(sender_id, get_self(), false);
-            _games.modify(_game, get_self(), [&](auto &g) {
-                                                 g.total_number ++;
-                                             });
-        } else {
-            // come here because someone send request directly and doesn't
-            // pay enough fee. Never open a door for him, but we accept his fee
-            eosio::print("{");
-            eosio::print("\"msg\": \"crackers come\"");
-            eosio::print("}");
-        }
-    } else {
-        eosio::print("{");
-        eosio::print("\"msg\": \"transfer action is trigger by platform, ignore it\"");
-        eosio::print("}");
-    }
-}
-
-void dice::schedhelper(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id) {
-    // only this contract can run
-    require_auth(get_self());
-    // uint128_t _sender_id = next_sender_id();
-
-    uint32_t block_num = tapos_block_num();
-    uint32_t block_prefix = tapos_block_prefix();
-
-    eosio::transaction txn {};
-    txn.actions.emplace_back(
-        eosio::permission_level{get_self(), "active"_n},
-        get_self(), "sched"_n,
-        std::make_tuple(user_id, gameuuid, now(), sender_id)
-        );
-    // NOTE: delay `x` (3 - 25) seconds, to avoid one man controls too many accounts
-    // this random number generator might be vunerable, but it's fine since
-    // it's only affect the order of the scheduled table.
-    // a hacker might be able to occupy at leading position.
-    // but a common user still has chance to be put at leading position
-    // and a common user can also enter this st_game multiple time to increase
-    // the chance to be put at leading position
-    pcg32_srandom_r(now(), now());
-    uint32_t delayed = pcg32_boundedrand_r(22) + 3;
-    txn.delay_sec = delayed;
-    txn.send(sender_id, get_self(), false);
-}
+// }
 
 void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id) {
-    // only this contract can run
-    // defer action: may result a problem. some transactions are failed without notification
-    // how to avoid that.
-    require_auth(get_self());
+    require_auth(admin);
 
     uint32_t block_num = tapos_block_num();
     uint32_t block_prefix = tapos_block_prefix();
@@ -515,6 +233,233 @@ void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sende
     //                                            u.expired_ts = expired_ts;
     //                                          });
 }
+
+void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
+    require_auth(admin);
+
+    auto _game = get_game_by_uuid(gameuuid);
+    eosio_assert(_game != _games.cend(), "not found st_game");
+
+    auto _winner = is_won_user_in_game(user, gameuuid);
+    eosio_assert(_winner != _winners.cend(), "winner not in st_game");
+
+    std::vector<eosio::name> participants;
+
+    for (auto _u : _waitingpool) {
+        if (_u.sched_flag == 0) {
+            participants.push_back(_u.user);
+        }
+    }
+    for (auto _u : _scheduled_users) {
+        participants.push_back(_u.user);
+    }
+
+    distribute(*_game,
+               user,
+               participants,
+               _winner->awards);
+    uint64_t real_awards = _winner->awards*WINNER_PERCENT;
+    update_heroes(user, real_awards);
+
+    _winners.erase(_winner);
+
+    if (_game->status == GAME_OVER) {
+        // clear all waiting users in this st_game
+        const uint32_t action_per_txn = 10;
+        auto it2 = _waitingpool.begin();
+        eosio::transaction txn {};
+        while (it2 != _waitingpool.end()) {
+            if (it2->gameuuid == _game->uuid) {
+                it2 = _waitingpool.erase(it2);
+            } else {
+                it2 ++;
+            }
+        }
+        // clear all sched users in this st_game
+        txn.actions.clear();
+        auto it3 = _scheduled_users.begin();
+        while (it3 != _scheduled_users.end()) {
+            if (it3->gameuuid == _game->uuid) {
+                it3 = _scheduled_users.erase(it3);
+            } else {
+                it3 ++;
+            }
+        }
+    }
+}
+
+void dice::setrate(uint64_t rate) {
+    require_auth(admin);
+    auto cfg = _config.get_or_default({});
+    cfg.token_exchange_rate = rate;
+    if (cfg.token_exchange_rate == 0) {
+        cfg.token_exchange_rate = 1;
+    }
+    _config.set(cfg, get_self());
+}
+
+void dice::setairdrop(uint32_t flag) {
+    require_auth(admin);
+    auto cfg = _config.get_or_default({});
+    cfg.airdrop_flag = flag;
+    _config.set(cfg, get_self());
+}
+
+void dice::showconfig() {
+    require_auth(admin);
+    auto cfg = _config.get_or_default({});
+    eosio::print("sender id: ", cfg.sender_id, ", ");
+    eosio::print("stop_remove_sched: ", cfg.stop_remove_sched, ", ");
+    eosio::print("sched_no: ", cfg.sched_no, ", ");
+    eosio::print("num_sched_users: ", cfg.num_sched_users, ", ");
+    eosio::print("token_exchange_rate: ", cfg.token_exchange_rate, ", ");
+    eosio::print("airdrop_flag: ", cfg.airdrop_flag, ", ");
+}
+
+// only called when a user added to schedule table/waiting table
+void dice::setloguser(uint64_t uuid, uint64_t gameuuid, uint32_t steps,
+                      uint128_t no, eosio::name user, time_t ts, time_t update_ts,
+                      time_t expired_ts, uint128_t proof, uint8_t sched_flag) {
+    require_auth(_self);
+}
+// only called when a winner added to winner talbe
+void dice::setloghero(
+        uint64_t uuid,
+        uint64_t gameuuid,
+        eosio::name user,
+        int64_t awards,
+        int64_t acc_awards,
+        uint32_t row,
+        uint32_t col,
+        time_t ts,
+        time_t update_ts) {
+    require_auth(_self);
+}
+/********************************************************************************
+ * Users actions
+ ********************************************************************************/
+void dice::enter(eosio::name user) {
+    /**
+     * NOTE: a user can enter st_game multiple times
+     * 1. tranfer fee
+     * 2. put him/her in waiting room
+     * 3. increase shadow awards pool
+     * 4. schedule the user to schedule table
+     */
+    eosio_assert(user == "eosio.token"_n, "fake tokens");
+    auto data = eosio::unpack_action_data<eosio_token_transfer>();
+    if (data.from != get_self()) {
+        eosio_assert(data.to == get_self(), "didn't transfer tokens to me");
+
+        eosio_assert(data.quantity.is_valid(), "invalid quantity");
+        eosio_assert(data.quantity.amount > 0, "must transfer positive quantity");
+        eosio_assert(data.quantity.symbol == eosio::symbol("EOS", 4), "symbol precision mismatch");
+        eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
+
+        uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
+        auto _game = get_game_by_uuid(gameuuid);
+        eosio_assert(_game != _games.cend(), "not found st_game.");
+        eosio_assert(_game->status != GAME_OVER, "st_game is over");
+
+        if (data.quantity.amount >= _game->fee) { // pay enough fee
+            // check st_game
+            incr_game_shadow_awards(*_game, _game->fee);
+
+            uint64_t user_id = _waitingpool.available_primary_key();
+
+            _waitingpool.emplace(get_self(), [&](auto &u) {
+                                                 u.uuid = user_id;
+                                                 u.gameuuid = _game->uuid;
+                                                 u.no = -1;
+                                                 u.user = data.from;
+                                                 u.steps = 0;
+                                                 u.ts = now();
+                                                 u.update_ts = now();
+                                                 u.sched_flag = 0;
+                                                 u.expired_ts = -1;
+                                             });
+            eosio::action(
+                eosio::permission_level{_self, "active"_n},
+                _self, "setloguser"_n,
+                std::make_tuple(user_id,
+                                _game->uuid,
+                                0,
+                                -1,
+                                data.from,
+                                now(),
+                                now(),
+                                -1,
+                                -1,
+                                0)).send();
+            // airdrop
+            if (check_airdrop_flag()) {
+                // check balance
+                uint32_t rate = get_token_exchange_rate();
+                uint64_t amt = data.quantity.amount * rate * 100;
+                eosio::symbol sym = eosio::symbol("MYEOS", 6);
+                eosio::asset airdrop_amt = eosio::asset(amt, sym);
+
+                accounts acnts(token_account, _self.value);
+                auto my_account_itr = acnts.find(sym.code().raw());
+                if (my_account_itr != acnts.cend() &&
+                    my_account_itr->balance.amount >= amt){
+
+                    std::string memo = std::string("User: ") + data.from.to_string() + std::string(" -- Enjoy airdrop! Play: matr0x");
+                    eosio::action(
+                        eosio::permission_level{_self, "active"_n},
+                        token_account, "transfer"_n,
+                        std::make_tuple(_self, data.from, airdrop_amt, memo)
+                        ).send();
+                } else {
+                    auto cfg = _config.get_or_default({});
+                    cfg.airdrop_flag = 0;
+                    _config.set(cfg, get_self());
+                }
+            }
+
+            _games.modify(_game, get_self(), [&](auto &g) {
+                                                 g.total_number ++;
+                                             });
+        } else {
+            // come here because someone send request directly and doesn't
+            // pay enough fee. Never open a door for him, but we accept his fee
+            eosio::print("{");
+            eosio::print("\"msg\": \"crackers come\"");
+            eosio::print("}");
+        }
+    } else {
+        eosio::print("{");
+        eosio::print("\"msg\": \"transfer action is trigger by platform, ignore it\"");
+        eosio::print("}");
+    }
+}
+
+// void dice::schedhelper(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id) {
+//     // only this contract can run
+//     require_auth(get_self());
+//     // uint128_t _sender_id = next_sender_id();
+
+//     uint32_t block_num = tapos_block_num();
+//     uint32_t block_prefix = tapos_block_prefix();
+
+//     eosio::transaction txn {};
+//     txn.actions.emplace_back(
+//         eosio::permission_level{get_self(), "active"_n},
+//         get_self(), "sched"_n,
+//         std::make_tuple(user_id, gameuuid, now(), sender_id)
+//         );
+//     // NOTE: delay `x` (3 - 25) seconds, to avoid one man controls too many accounts
+//     // this random number generator might be vunerable, but it's fine since
+//     // it's only affect the order of the scheduled table.
+//     // a hacker might be able to occupy at leading position.
+//     // but a common user still has chance to be put at leading position
+//     // and a common user can also enter this st_game multiple time to increase
+//     // the chance to be put at leading position
+//     pcg32_srandom_r(now(), now());
+//     uint32_t delayed = pcg32_boundedrand_r(22) + 3;
+//     txn.delay_sec = delayed;
+//     txn.send(sender_id, get_self(), false);
+// }
 
 void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     // NOTE: each user can only toss once
@@ -833,6 +778,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             desc_game_awards(*_game, _game->awards);
             desc_game_shadow_awards(*_game, _game->awards);
         }
+
         eosio::action(
             eosio::permission_level{_self, "active"_n},
             _self, "setloghero"_n,
@@ -847,7 +793,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                 now(),
                 now()
                 )).send();
-
     } else {
         point pt = point(_game->pos);
         eosio::print("{");
@@ -876,23 +821,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     }
 
     // erase this user in scheduled_users table
-    // eosio::transaction txn {};
-
-    eosio::action(eosio::permission_level{_self, "active"_n},
-                  get_self(), "setloguser"_n,
-                  std::make_tuple(_user->uuid,
-                                  _user->gameuuid,
-                                  _user->steps,
-                                  _user->no,
-                                  _user->user,
-                                  _user->ts,
-                                  _user->update_ts,
-                                  _user->expired_ts,
-                                  _user->proof,
-                                  _user->sched_flag)).send();
-    // txn.delay_sec = 0;
-    // txn.send(next_sender_id(), _self, false);
-
     _scheduled_users.erase(_user);
 
     desc_num_sched_users(1);
@@ -1123,9 +1051,9 @@ EOSIO_DISPATCH2(dice,
                 (toss)
                 (sendtokens)
                 (sched)
-                (schedhelper)
+                // (schedhelper)
                 (rmexpired)
-                (forcesched)
+                // (forcesched)
                 (setloguser)
                 (setrate)
                 (setairdrop)
