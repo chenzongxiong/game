@@ -152,7 +152,7 @@ private:
         int64_t awards;         // the number of tokens we will distribute
         int64_t shadow_awards;  // the number of tokens we collect in this st_game
         uint64_t total_number;  // total number of st_users enter this st_game
-        // uint64_t total_sched_number; // total scheduled st_users
+        uint64_t total_sched_number; // total scheduled st_users
 
         eosio::name gamename;
         std::vector<uint32_t> goals;
