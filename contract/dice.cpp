@@ -218,22 +218,22 @@ void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sende
     // mapping with waiting pool
     // _waitingpool.erase(_user);
     // remove: set log for waiting user
-    eosio::action(
-        eosio::permission_level{_self, "active"_n},
-        _self, "setloguser"_n,
-        std::make_tuple(
-            _user->uuid,
-            _user->gameuuid,
-            _user->steps,
-            _user->no,
-            _user->user,
-            _user->ts,
-            _user->update_ts,
-            _user->expired_ts,
-            _user->proof,
-            1
-            )
-        ).send();
+    // eosio::action(
+    //     eosio::permission_level{_self, "active"_n},
+    //     _self, "setloguser"_n,
+    //     std::make_tuple(
+    //         _user->uuid,
+    //         _user->gameuuid,
+    //         _user->steps,
+    //         _user->no,
+    //         _user->user,
+    //         _user->ts,
+    //         _user->update_ts,
+    //         _user->expired_ts,
+    //         _user->proof,
+    //         1
+    //         )
+    //     ).send();
 
     _waitingpool.modify(*_user, get_self(),  [&](auto &u) {
                                                u.sched_flag = 1;
@@ -277,11 +277,9 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
         eosio::transaction txn {};
         while (it2 != _waitingpool.end()) {
             if (it2->gameuuid == _game->uuid) {
-                if (_game != _games.cend()) {
-                    _games.modify(_game, get_self(), [&](auto &g){
-                                                         g.total_number --;
+                _games.modify(_game, get_self(), [&](auto &g){
+                                                     g.total_number --;
                                                      });
-                }
                 it2 = _waitingpool.erase(it2);
             } else {
                 it2 ++;
@@ -293,11 +291,9 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
         while (it3 != _scheduled_users.end()) {
             if (it3->gameuuid == _game->uuid) {
                 // auto _game = _games.find(it3->gameuuid);
-                if (_game != _games.cend()) {
-                    _games.modify(_game, get_self(), [&](auto &g){
-                                                         g.total_sched_number --;
-                                                     });
-                }
+                _games.modify(_game, get_self(), [&](auto &g){
+                                                     g.total_sched_number --;
+                                                 });
                 it3 = _scheduled_users.erase(it3);
             } else {
                 it3 ++;
@@ -334,13 +330,11 @@ void dice::showconfig() {
     eosio::print("airdrop_flag: ", cfg.airdrop_flag, ", ");
 }
 
-// only called when a user added to schedule table/waiting table
 void dice::setloguser(uint64_t uuid, uint64_t gameuuid, uint32_t steps,
                       uint128_t no, eosio::name user, time_t ts, time_t update_ts,
                       time_t expired_ts, uint128_t proof, uint8_t sched_flag) {
     require_auth(_self);
 }
-// only called when a winner added to winner talbe
 void dice::setloghero(
         uint64_t uuid,
         uint64_t gameuuid,
@@ -396,6 +390,7 @@ void dice::enter(eosio::name user) {
                                                  u.sched_flag = 0;
                                                  u.expired_ts = -1;
                                              });
+            // log a user enter our game
             eosio::action(
                 eosio::permission_level{_self, "active"_n},
                 _self, "setloguser"_n,
@@ -797,6 +792,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             desc_game_shadow_awards(*_game, _game->awards);
         }
 
+        // log for add winer user into pool
         eosio::action(
             eosio::permission_level{_self, "active"_n},
             _self, "setloghero"_n,
@@ -839,14 +835,28 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     }
 
     // erase this user in scheduled_users table
+    _games.modify(_game, get_self(), [&](auto &g){
+                                         g.total_sched_number --;
+                                     });
+    eosio::action(
+        eosio::permission_level{_self, "active"_n},
+        _self, "setloguser"_n,
+        std::make_tuple(
+            _user->uuid,
+            _user->gameuuid,
+            _user->steps,
+            _user->no,
+            _user->user,
+            _user->ts,
+            _user->update_ts,
+            _user->expired_ts,
+            _user->proof,
+            1
+            )
+        ).send();
     _scheduled_users.erase(_user);
-    if (_game != _games.cend()) {
-        _games.modify(_game, get_self(), [&](auto &g){
-                                             g.total_sched_number --;
-                                         });
-    }
-    // desc_num_sched_users(1);
 
+    // we descrease total waiting number here
     _games.modify(_game, get_self(), [&](auto &g) {
                                          g.total_number --;
                                      });
