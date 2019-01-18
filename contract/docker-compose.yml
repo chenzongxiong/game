@@ -14,3 +14,9 @@ services:
       restart_policy:
         condition: "always"
     command: ["node", "/opt/eosio/bin/sendtokens.js"]
+  forcesched:
+    build: .
+    deploy:
+      restart_policy:
+        condition: "always"
+    command: ["node", "/opt/eosio/bin/forcesched.js"]
