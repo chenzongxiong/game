@@ -4,10 +4,6 @@ const Eos = require('eosjs');
 
 const defaultPrivateKey = "5KFyaxQW8L6uXFB6wSgC44EsAbzC7ideyhhQ68tiYfdKQp69xKo";
 
-let eos = Eos({ keyProvider: defaultPrivateKey,
-                httpEndpoint: 'http://jungle2.cryptolions.io:80',
-                chainId: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473' });
-
 let contract = 'matrixcasino';
 let scope = 'matrixcasino';
 let table = 'schedtbl';
@@ -17,30 +13,82 @@ const options = {
   sign: true
 };
 
+let eos = Eos({ keyProvider: defaultPrivateKey,
+                httpEndpoint: 'http://jungle2.cryptolions.io:80',
+                chainId: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473' });
+
+console.log("start to call action: rmexpired");
+
+let GAME_CLOSE = 0x01;
+let GAME_START = 0x02;
+let GAME_OVER  = 0x04;
+let MAX_SCHED_USER_IN_POOL = 10;
+
+
+let game_params = {
+  json: true,
+  code: contract,
+  scope: scope,
+  table: "gametbl",
+};
+
+let sched_params = {
+  json: true,
+  code: contract,
+  scope: scope,
+  key_type: 'i64',
+  index_position: '2',
+  table: 'schedtbl',
+  lower_bound: -1,
+  upper_bound: -1,
+  limit: 1000,
+};
 
 const queryTable = async function () {
-  let results = await eos.getTableRows(true, contract, scope, table);
-  console.log("========================================");
-  let curr_ts = Date.now();
+  let curr_ts = Date.now()/1000;
+  let game_results = await eos.getTableRows(game_params);
 
-  if (results.rows.length != 0){
-    let row = results.rows[0];
-    console.log(row);
-    if (row.expired_ts < curr_ts) {
-      console.log("remove expired");
-      eos.contract(contract).then(
-        ctx => {
-          ctx.rmexpired(options).then(trx => {
-            console.log(trx.transaction_id);
-          }).catch(e => {
-            console.log("error", e);
-          });
-        }
-      );
+  for (let row of game_results.rows) {
+    if (row.status != GAME_START) {
+      continue;
     }
-  } else {
-      console.log("no expired");
+    sched_params.lower_bound = row.uuid;
+    sched_params.upper_bound = row.uuid;
+    let sched_results = await eos.getTableRows(sched_params);
+    console.log("========================================");
+    console.log("gameuuid: ", row.uuid, ", sched_result.length: ", sched_results.rows.length);
+    console.log("========================================");
+    if (sched_results.rows.length != 0) {
+      let row = sched_results.rows[0];
+      if (row.expired_ts < curr_ts) {
+        console.log("********************remove expired********************");
+        eos.contract(contract).then(
+          ctx => {
+            ctx.rmexpired(options).then(trx => {
+              console.log(trx.transaction_id);
+            }).catch(e => {
+              console.log("error", e);
+              process.exit(1);
+            });
+          }
+        );
+      } else {
+        console.log("no expired");
+      }
+    }
   }
 };
 
-setInterval(queryTable, 3000);
+function wrapper() {
+  let intervalHandle = setInterval(() => {
+    try {
+      queryTable();
+    } catch (error) {
+      console.log("catch error:");
+      console.log(error);
+      clearInterval(intervalHandle);
+    }
+  }, 3000);
+}
+
+wrapper();
