@@ -20,27 +20,34 @@ let eos = Eos({ keyProvider: defaultPrivateKey,
 console.log("start to call action: rmexpired");
 
 const queryTable = async function () {
-  let results = await eos.getTableRows(true, contract, scope, table);
-  console.log("========================================");
-  let curr_ts = Date.now();
+  try {
+    let results = await eos.getTableRows(true, contract, scope, table);
+    console.log("========================================");
+    let curr_ts = Date.now();
 
-  if (results.rows.length != 0){
-    let row = results.rows[0];
-    console.log(row);
-    if (row.expired_ts < curr_ts) {
-      console.log("remove expired");
-      eos.contract(contract).then(
-        ctx => {
-          ctx.rmexpired(options).then(trx => {
-            console.log(trx.transaction_id);
-          }).catch(e => {
-            console.log("error", e);
-          });
-        }
-      );
+    if (results.rows.length != 0){
+      let row = results.rows[0];
+      console.log(row);
+      if (row.expired_ts < curr_ts) {
+        console.log("remove expired");
+        eos.contract(contract).then(
+          ctx => {
+            ctx.rmexpired(options).then(trx => {
+              console.log(trx.transaction_id);
+            }).catch(e => {
+              console.log("error", e);
+              process.exit(1);
+            });
+          }
+        );
+      }
+    } else {
+      console.log("no expired");
     }
-  } else {
-    console.log("no expired");
+  } catch (error) {
+    console.log("error");
+    console.log(error);y
+    process.exit(1);
   }
 };
 

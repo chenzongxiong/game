@@ -134,7 +134,7 @@ void dice::rmexpired() {
     eosio::print("}");
 }
 
-void dice::forcesched(uint64_t seed) {
+void dice::forcesched(uint64_t gameuuid, uint64_t seed) {
     require_auth(admin);
 
     time_t curr_ts = now();
@@ -145,21 +145,23 @@ void dice::forcesched(uint64_t seed) {
     proof <<= 64;
     proof |= (uint128_t)curr_ts;
 
-    for (auto &g : _games) {
-        if (g.status != GAME_START) { // only do scheduling for start game
-            continue;
-        }
+    auto g = _games.find(gameuuid);
+    eosio_assert(g->status != GAME_START, "game is not start");
 
-        uint64_t sched_num = g.total_sched_number;
+    // for (auto &g : _games) {
+    //     if (g.status != GAME_START) { // only do scheduling for start game
+    //         continue;
+    //     }
+    {
+        uint64_t sched_num = g->total_sched_number;
         uint64_t max_sched_user_in_pool = get_max_sched_user_in_pool();
         if (sched_num >= max_sched_user_in_pool) {
-            eosio::print("error here !!!");
-            eosio::print("sched_number: ", sched_num);
+            eosio::print("bug? the schedule pool is already full, sched_num: ", sched_num);
         } else {
             uint64_t num_to_sched = max_sched_user_in_pool - sched_num;
             std::vector<st_users> latest_scheduling_users;
             for (auto _user : _waitingpool) {
-                if (_user.gameuuid == g.uuid) {
+                if (_user.gameuuid == g->uuid) {
                     latest_scheduling_users.push_back(_user);
                 }
             }
@@ -175,6 +177,7 @@ void dice::forcesched(uint64_t seed) {
             }
         }
     }
+
     // eosio::print("{");
     // eosio::print("\"count\": ", count, ", ");
     // eosio::print("\"msg\": \"forcesched successfully.\"");

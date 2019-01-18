@@ -460,7 +460,7 @@ public:
     [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
 
     [[eosio::action]] void rmexpired();
-    [[eosio::action]] void forcesched(uint64_t seed);
+    [[eosio::action]] void forcesched(uint64_t gameuuid, uint64_t seed);
     // helper functions
 
     [[eosio::action]] void setrate(uint64_t rate);
