@@ -134,11 +134,11 @@ void dice::rmexpired() {
     eosio::print("}");
 }
 
-void dice::forcesched() {
+void dice::forcesched(uint64_t seed) {
     require_auth(admin);
 
     time_t curr_ts = now();
-    uint32_t TIMEOUT = 60;
+    // uint32_t TIMEOUT = 60;
     uint32_t count = 0;
 
     auto it = _waitingpool.begin();
@@ -148,7 +148,7 @@ void dice::forcesched() {
     while (it != end) {
         time_t update_ts = it->update_ts;
         uint32_t diff = curr_ts - update_ts;
-        if (it->sched_flag == 0 && diff >= TIMEOUT) {
+        if (it->sched_flag == 0 && diff >= SCHED_TIMEOUT) {
             count ++;
             eosio::print("force sched waiting users, ");
             uint64_t user_id = it->uuid;
@@ -178,23 +178,24 @@ void dice::forcesched() {
 void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id) {
     require_auth(admin);
 
-    uint32_t block_num = tapos_block_num();
-    uint32_t block_prefix = tapos_block_prefix();
+    // uint32_t block_num = tapos_block_num();
+    // uint32_t block_prefix = tapos_block_prefix();
 
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "bug ? st_game not found.");
     eosio_assert(_game->status == GAME_START, "bug ? st_game does not start");
     uint128_t proof = 0;
-    proof |= block_num;
-    proof <<= 32;
-    proof |= block_prefix;
-    proof <<= 64;
+    // proof |= block_num;
+    // proof <<= 32;
+    // proof |= block_prefix;
+    // proof <<= 64;
     time_t curr_ts = now();
-    proof |= (uint64_t)curr_ts;
-    uint64_t sched_no = next_sched_no();
-    uint64_t num_sched_users = get_num_sched_users();
-    time_t expired_ts = curr_ts + (num_sched_users + 1) * SCHED_TIMEOUT;
+    // proof |= (uint64_t)curr_ts;
+    uint64_t platform_lucky_number = -1;
+    // uint64_t sched_no = next_sched_no();
+    // uint64_t num_sched_users = get_num_sched_users();
 
+    time_t expired_ts = curr_ts + (_game->total_sched_number + 1) * SCHED_TIMEOUT;
     auto _user = _waitingpool.find(user_id);
     eosio_assert(_user != _waitingpool.cend(), "bug? not found user");
     uint64_t sched_user_id = _scheduled_users.available_primary_key();
@@ -203,7 +204,7 @@ void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sende
                                              u.uuid = sched_user_id;
                                              u.gameuuid = gameuuid;
                                              u.steps = 0;
-                                             u.no = sched_no;
+                                             u.no = platform_lucky_number;
                                              u.user = _user->user;
                                              u.ts = ts;
                                              u.update_ts = curr_ts;
@@ -335,6 +336,7 @@ void dice::setloguser(uint64_t uuid, uint64_t gameuuid, uint32_t steps,
                       time_t expired_ts, uint128_t proof, uint8_t sched_flag) {
     require_auth(_self);
 }
+
 void dice::setloghero(
         uint64_t uuid,
         uint64_t gameuuid,
@@ -482,7 +484,6 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
     // 3. assign that number to that user
 
     require_auth(user);
-
     auto end = _scheduled_users.cend();
     bool once = false;
     bool expired = false;
@@ -494,6 +495,8 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                     // this user doesn't toss yet
                     if (_user->expired_ts >= now()) {
                         // this user is still valid, not expired
+
+
                         uint128_t proof = _user->proof;
                         uint32_t dice_number = get_rnd_dice_number(proof);
 

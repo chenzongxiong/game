@@ -88,8 +88,8 @@ private:
 
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    static constexpr uint32_t TIMEOUT_USERS = 60;
-    static constexpr uint32_t SCHED_TIMEOUT = 60;
+    static constexpr uint32_t TIMEOUT_USERS = 45;
+    static constexpr uint32_t SCHED_TIMEOUT = 45;
 
     struct point {
         uint32_t row;
@@ -439,7 +439,7 @@ public:
     [[eosio::action]] void sendtokens(eosio::name user, uint64_t gameuuid);
 
     [[eosio::action]] void rmexpired();
-    [[eosio::action]] void forcesched();
+    [[eosio::action]] void forcesched(uint64_t seed);
     // helper functions
 
     [[eosio::action]] void setrate(uint64_t rate);
