@@ -40,69 +40,59 @@ let sched_params = {
   lower_bound: -1,
   upper_bound: -1,
   // table_key:
+  limit: 1000,
 };
 let wait_params = {
   json: true,
   code: contract,
   scope: scope,
-  // key_type: 'i64',
-  // index_position: '2',
+  key_type: 'i64',
+  index_position: '2',
   table: 'waittbl',
+  limit: 1000,
 };
 
+let seed = 0;
+
 const queryTable = async function () {
-  try {
-    let game_results = await eos.getTableRows(game_params);
+  let game_results = await eos.getTableRows(game_params);
 
-    // console.log(game_results.rows);
-    for (let row of game_results.rows) {
-      if (row.status != GAME_OVER) {
-        sched_params.lower_bound = row.uuid;
-        sched_params.upper_bound = row.uuid;
-        let sched_results = await eos.getTableRows(sched_params);
+  for (let row of game_results.rows) {
+    if (row.status == GAME_START) {
+      sched_params.lower_bound = row.uuid;
+      sched_params.upper_bound = row.uuid;
+      let sched_results = await eos.getTableRows(sched_params);
 
-        console.log("========================================");
-        console.log(sched_results.rows[0].gameuuid);
-        if (sched_results.rows.length < MAX_SCHED_USER_IN_POOL) {
-          // TODO: call force sched function offline
+      console.log("========================================");
+      console.log("gameuuid: ", row.uuid, ", sched_result.length: ", sched_results.rows.length);
+      console.log("========================================");
 
+      if (sched_results.rows.length < MAX_SCHED_USER_IN_POOL) {
+        wait_params.lower_bound = row.uuid;
+        wait_params.upper_bound = row.uuid;
+        let wait_results = await eos.getTableRows(wait_params);
+        for (let i in wait_results.rows) {
+          console.log("Item: ", i, ", gameuuid: ", wait_results.rows[i].gameuuid);
+          if (wait_results.rows[i].sched_flag === 0) {
+            console.log("force sched");
+            let contract_instance = await eos.contract(contract);
+
+            try {
+              let param = {
+                gameuuid: row.uuid,
+                seed: seed
+              };
+              let trx = await contract_instance.forcesched(param, options);
+              console.log("transaction.id", trx.transaction_id);
+            } catch (error) {
+              console.log("error", error);
+              process.exit(1);
+            }
+            break;
+          }
         }
       }
     }
-    // game_results.rows.forEach(row => {
-
-
-
-    //   console.log(row.uuid);
-    // });
-    // console.log(sched_results.rows);
-    // let wait_results = await eos.getTableRows(wait_params);
-    // console.log("========================================");
-    // let curr_ts = Date.now();
-
-    // if (wait_results.rows.length != 0){
-    //   let row = wait_results.rows[0];
-    //   console.log(row);
-    //   if (row.expired_ts < curr_ts) {
-    //     console.log("force sched");
-    //     eos.contract(contract).then(
-    //       ctx => {
-    //         ctx.forcesched(options).then(trx => {
-    //           console.log(trx.transaction_id);
-    //         }).catch(e => {
-    //           console.log("error", e);
-    //           process.exit(1);
-    //         });
-    //       }
-    //     );
-    //   }
-    // } else {
-    //   console.log("no expired");
-    // }
-  } catch (error) {
-    console.log("error");
-    console.log(error);
-    process.exit(1);
   }
 };
 
@@ -114,8 +104,9 @@ function wrapper() {
       console.log("catch error: ");
       console.log(error);
       clearInterval(intervalHandle);
+      process.exit(1);
     }
-  }, 3000);
+  }, 10000);
 }
 
 wrapper();

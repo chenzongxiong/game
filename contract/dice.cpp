@@ -11,6 +11,8 @@ void dice::clear2(std::string tbl) {
     require_auth(admin);
 
     if (tbl == "gametbl") {
+        clear2("waittbl");
+        clear2("schedtbl");
         auto it1 = _games.begin();
         while (it1 != _games.end()) {
             it1 = _games.erase(it1);
@@ -19,17 +21,25 @@ void dice::clear2(std::string tbl) {
     if (tbl == "waittbl") {
         auto it2 = _waitingpool.begin();
         while (it2 != _waitingpool.end()) {
+            auto g = _games.find(it2->gameuuid);
+            _games.modify(g, _self, [&](auto &_g) {
+                                        _g.total_number --;
+                                    });
             it2 = _waitingpool.erase(it2);
         }
     }
     if (tbl == "schedtbl") {
         auto it3 = _scheduled_users.begin();
         while (it3 != _scheduled_users.end()) {
+            auto g = _games.find(it3->gameuuid);
+            _games.modify(g, _self, [&](auto &_g) {
+                                        _g.total_sched_number --;
+                                    });
             it3 = _scheduled_users.erase(it3);
         }
-        auto cfg = _config.get_or_default({});
-        cfg.num_sched_users = 0;
-        _config.set(cfg, get_self());
+        // auto cfg = _config.get_or_default({});
+        // cfg.num_sched_users = 0;
+        // _config.set(cfg, get_self());
     }
     if (tbl == "herotbl") {
         auto it4 = _heroes.begin();
@@ -42,6 +52,9 @@ void dice::clear2(std::string tbl) {
         while (it5 != _winners.end()) {
             it5 = _winners.erase(it5);
         }
+    }
+    if (tbl == "config") {
+        _config.remove();
     }
 }
 #endif
@@ -93,8 +106,8 @@ void dice::addgame(eosio::name gamename, uint32_t width,
 
 void dice::setgamestat(uint64_t gameuuid, uint32_t status) {
     require_auth(admin);
-    if (status != GAME_START ||
-        status != GAME_CLOSE ||
+    if (status != GAME_START &&
+        status != GAME_CLOSE &&
         status != GAME_OVER) {
         eosio_assert(false, "invalid st_game status");
     }
@@ -108,30 +121,27 @@ void dice::setgamestat(uint64_t gameuuid, uint32_t status) {
 void dice::rmexpired() {
     require_auth(admin);
 
-    uint32_t count = 0;
     time_t curr_ts = now();
 
     auto it3 = _scheduled_users.begin();
     while (it3 != _scheduled_users.end()) {
         if (curr_ts >= it3->expired_ts) {
-            it3 = _scheduled_users.erase(it3);
             auto _game = _games.find(it3->gameuuid);
             if (_game != _games.cend()) {
                 _games.modify(_game, get_self(), [&](auto &g){
                                                      g.total_sched_number --;
                                                  });
+                _games.modify(_game, get_self(), [&](auto &g) {
+                                                     g.total_number --;
+                                                 });
             }
 
-            count ++;
+            it3 = _scheduled_users.erase(it3);
+
         } else {
             it3 ++;
         }
     }
-    // desc_num_sched_users(count);
-    eosio::print("{");
-    eosio::print("\"count\":", count, ", ");
-    eosio::print("\"msg\": \"remove expired user successfully\"");
-    eosio::print("}");
 }
 
 void dice::forcesched(uint64_t gameuuid, uint64_t seed) {
@@ -146,7 +156,7 @@ void dice::forcesched(uint64_t gameuuid, uint64_t seed) {
     proof |= (uint128_t)curr_ts;
 
     auto g = _games.find(gameuuid);
-    eosio_assert(g->status != GAME_START, "game is not start");
+    eosio_assert(g->status == GAME_START, "game is not start");
 
     // for (auto &g : _games) {
     //     if (g.status != GAME_START) { // only do scheduling for start game
@@ -161,16 +171,25 @@ void dice::forcesched(uint64_t gameuuid, uint64_t seed) {
             uint64_t num_to_sched = max_sched_user_in_pool - sched_num;
             std::vector<st_users> latest_scheduling_users;
             for (auto _user : _waitingpool) {
-                if (_user.gameuuid == g->uuid) {
+                if (_user.gameuuid == g->uuid &&
+                    _user.sched_flag == 0) { // this game and not scheduled
                     latest_scheduling_users.push_back(_user);
                 }
             }
             if (latest_scheduling_users.size() < num_to_sched) {
                 num_to_sched = latest_scheduling_users.size();
             }
+            std::set<uint64_t> book_keeping;
+
             uint64_t i = 0;
             while (i < num_to_sched) {         // forever looping ?
                 uint64_t idx = pcg32_boundedrand_r(num_to_sched);
+                auto pos = book_keeping.find(idx);
+                if (pos != book_keeping.end()) {
+                    // already scheduled.
+                    continue;
+                }
+                book_keeping.insert(idx);
                 auto _user = latest_scheduling_users[idx];
                 sched(_user.uuid, _user.gameuuid, curr_ts, proof);
                 i ++;
@@ -213,6 +232,7 @@ void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed)
                                          });
     _games.modify(_game, _self, [&](auto &g) {
                                     g.total_sched_number ++;
+                                    // g.total_number --;
                                 });
 
     // mapping with waiting pool
@@ -387,32 +407,42 @@ void dice::enter(eosio::name user) {
             incr_game_shadow_awards(*_game, _game->fee);
 
             uint64_t user_id = _waitingpool.available_primary_key();
-
+            uint128_t no = (uint128_t)-1;
+            uint128_t proof = (uint128_t)-1;
+            uint8_t sched_flag = (uint8_t)0;
+            time_t expired_ts = (time_t)-1;
+            uint32_t steps = 0;
             _waitingpool.emplace(get_self(), [&](auto &u) {
                                                  u.uuid = user_id;
                                                  u.gameuuid = _game->uuid;
-                                                 u.no = -1;
+                                                 u.no = no;
                                                  u.user = data.from;
-                                                 u.steps = 0;
+                                                 u.steps = steps;
                                                  u.ts = now();
                                                  u.update_ts = now();
-                                                 u.sched_flag = 0;
-                                                 u.expired_ts = -1;
+                                                 u.sched_flag = sched_flag;
+                                                 u.expired_ts = expired_ts;
                                              });
+            _games.modify(_game, get_self(), [&](auto &g) {
+                                                 g.total_number ++;
+                                             });
+            uint64_t seed = data.from.value + (uint64_t)(now());
+            update_global_seed(seed);
+
             // log a user enter our game
             eosio::action(
                 eosio::permission_level{_self, "active"_n},
                 _self, "setloguser"_n,
                 std::make_tuple(user_id,
                                 _game->uuid,
-                                0,
-                                -1,
+                                steps,
+                                no,
                                 data.from,
                                 now(),
                                 now(),
-                                -1,
-                                -1,
-                                0)).send();
+                                expired_ts,
+                                proof,
+                                sched_flag)).send();
             // airdrop
             if (check_airdrop_flag()) {
                 // check balance
@@ -424,7 +454,7 @@ void dice::enter(eosio::name user) {
                 accounts acnts(token_account, _self.value);
                 auto my_account_itr = acnts.find(sym.code().raw());
                 if (my_account_itr != acnts.cend() &&
-                    my_account_itr->balance.amount >= amt){
+                    my_account_itr->balance.amount >= amt) {
 
                     std::string memo = std::string("User: ") + data.from.to_string() + std::string(" -- Enjoy airdrop! Play: matr0x");
                     eosio::action(
@@ -435,15 +465,11 @@ void dice::enter(eosio::name user) {
                 } else {
                     auto cfg = _config.get_or_default({});
                     cfg.airdrop_flag = 0;
+                    cfg.token_exchange_rate = 1;
                     _config.set(cfg, get_self());
                 }
             }
 
-            _games.modify(_game, get_self(), [&](auto &g) {
-                                                 g.total_number ++;
-                                             });
-            uint64_t seed = data.from.value + (uint64_t)(now());
-            update_global_seed(seed);
         } else {
             // come here because someone send request directly and doesn't
             // pay enough fee. Never open a door for him, but we accept his fee
@@ -871,9 +897,6 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     }
 
     // erase this user in scheduled_users table
-    _games.modify(_game, get_self(), [&](auto &g){
-                                         g.total_sched_number --;
-                                     });
     eosio::action(
         eosio::permission_level{_self, "active"_n},
         _self, "setloguser"_n,
@@ -892,10 +915,32 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         ).send();
     _scheduled_users.erase(_user);
 
+    _games.modify(_game, get_self(), [&](auto &g){
+                                         g.total_sched_number --;
+                                     });
     // we descrease total waiting number here
     _games.modify(_game, get_self(), [&](auto &g) {
                                          g.total_number --;
                                      });
+    // update expired ts, since this user might only use 10s
+    // at most N * 10 entry, N is the number of the game
+    // {
+    //     time_t curr_ts = now();
+    //     auto it = _scheduled_users.begin();
+    //     auto end = _scheduled_users.end();
+    //     uint32_t i = 0;
+    //     while (it != end) {
+    //         if (it->gameuuid == _game->uuid) {
+    //             i ++;
+    //             _scheduled_users.modify(it, get_self(), [&](auto &u) {
+    //                                                         u.expired_ts = curr_ts + i * SCHED_TIMEOUT;
+    //                                                         u.update_ts = curr_ts;
+    //                                                     });
+    //         }
+    //         it ++;
+    //     }
+    // }
+
 }
 
 /*********************************************************************************

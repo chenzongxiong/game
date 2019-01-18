@@ -88,8 +88,8 @@ private:
 
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    static constexpr uint32_t TIMEOUT_USERS = 45;
-    static constexpr uint32_t SCHED_TIMEOUT = 45;
+    // static constexpr uint32_t TIMEOUT_USERS = 45;
+    static constexpr uint32_t SCHED_TIMEOUT = 120;
 
     struct point {
         uint32_t row;
@@ -279,7 +279,7 @@ private:
         uint32_t stop_remove_sched;
         uint64_t sched_no;
         uint64_t num_sched_users = 0;
-        uint32_t token_exchange_rate = 1;
+        uint64_t token_exchange_rate = 1;
         uint32_t airdrop_flag = 0;
         uint64_t global_seed = 0x199302;
         uint64_t max_sched_user_in_pool = 10;
@@ -328,7 +328,7 @@ private:
             return false;
         }
     }
-    uint32_t get_token_exchange_rate() {
+    uint64_t get_token_exchange_rate() {
         auto cfg = _config.get_or_default({});
         return cfg.token_exchange_rate;
     }

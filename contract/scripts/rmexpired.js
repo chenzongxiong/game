@@ -19,17 +19,49 @@ let eos = Eos({ keyProvider: defaultPrivateKey,
 
 console.log("start to call action: rmexpired");
 
-const queryTable = async function () {
-  try {
-    let results = await eos.getTableRows(true, contract, scope, table);
-    console.log("========================================");
-    let curr_ts = Date.now();
+let GAME_CLOSE = 0x01;
+let GAME_START = 0x02;
+let GAME_OVER  = 0x04;
+let MAX_SCHED_USER_IN_POOL = 10;
 
-    if (results.rows.length != 0){
-      let row = results.rows[0];
-      console.log(row);
+
+let game_params = {
+  json: true,
+  code: contract,
+  scope: scope,
+  table: "gametbl",
+};
+
+let sched_params = {
+  json: true,
+  code: contract,
+  scope: scope,
+  key_type: 'i64',
+  index_position: '2',
+  table: 'schedtbl',
+  lower_bound: -1,
+  upper_bound: -1,
+  limit: 1000,
+};
+
+const queryTable = async function () {
+  let curr_ts = Date.now()/1000;
+  let game_results = await eos.getTableRows(game_params);
+
+  for (let row of game_results.rows) {
+    if (row.status != GAME_START) {
+      continue;
+    }
+    sched_params.lower_bound = row.uuid;
+    sched_params.upper_bound = row.uuid;
+    let sched_results = await eos.getTableRows(sched_params);
+    console.log("========================================");
+    console.log("gameuuid: ", row.uuid, ", sched_result.length: ", sched_results.rows.length);
+    console.log("========================================");
+    if (sched_results.rows.length != 0) {
+      let row = sched_results.rows[0];
       if (row.expired_ts < curr_ts) {
-        console.log("remove expired");
+        console.log("********************remove expired********************");
         eos.contract(contract).then(
           ctx => {
             ctx.rmexpired(options).then(trx => {
@@ -40,14 +72,10 @@ const queryTable = async function () {
             });
           }
         );
+      } else {
+        console.log("no expired");
       }
-    } else {
-      console.log("no expired");
     }
-  } catch (error) {
-    console.log("error");
-    console.log(error);y
-    process.exit(1);
   }
 };
 
