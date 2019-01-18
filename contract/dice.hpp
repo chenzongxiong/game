@@ -493,6 +493,7 @@ public:
 
     [[eosio::action]] void setrate(uint64_t rate);
     [[eosio::action]] void setairdrop(uint32_t flag);
+    [[eosio::action]] void showconfig();
 private:
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);

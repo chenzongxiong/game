@@ -223,6 +223,7 @@ void dice::clear() {
     clear2("schedtbl");
     clear2("herotbl");
     clear2("winnertbl");
+    _config.remove();
 
 }
 void dice::clear2(std::string tbl) {
@@ -266,6 +267,9 @@ void dice::clear2(std::string tbl) {
         while (it5 != _winners.end()) {
             it5 = _winners.erase(it5);
         }
+    }
+    if (tbl == "config") {
+        _config.remove();
     }
 }
 #endif
@@ -1616,7 +1620,15 @@ void dice::setairdrop(uint32_t flag) {
     cfg.airdrop_flag = flag;
     _config.set(cfg, get_self());
 }
-
+void dice::showconfig() {
+    require_auth(admin);
+    auto cfg = _config.get_or_default({});
+    eosio::print("sender_id: ", cfg.sender_id, ", ");
+    eosio::print("stop_remove_sched: ", cfg.stop_remove_sched, ", ");
+    eosio::print("sched_no: ", cfg.sched_no, ", ");
+    eosio::print("num_sched_users: ", cfg.num_sched_users, ", ");
+    _config.remove();
+}
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
         void apply( uint64_t receiver, uint64_t code, uint64_t action ) { \
@@ -1673,4 +1685,5 @@ EOSIO_DISPATCH2(dice,
                 (setrate)
                 (setairdrop)
                 // (dispatchlog)
+                (showconfig)
     )
