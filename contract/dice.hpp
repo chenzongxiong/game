@@ -107,11 +107,11 @@ private:
             return (((row & 0x0000ffff) << 16) | (col & 0x0000ffff));
         }
 
-        void debug () const {
-            eosio::print(">| ");
-            eosio::print("row: ", row, ", col: ", col);
-            eosio::print(" |");
-        }
+        // void debug () const {
+        //     eosio::print(">| ");
+        //     eosio::print("row: ", row, ", col: ", col);
+        //     eosio::print(" |");
+        // }
     };
 
     std::vector<point> centroids = {point(0, 0),
@@ -281,6 +281,8 @@ private:
         uint64_t num_sched_users = 0;
         uint32_t token_exchange_rate = 1;
         uint32_t airdrop_flag = 0;
+        uint64_t global_seed = 0x199302;
+        uint64_t max_sched_user_in_pool = 10;
     };
 
     uint128_t next_sender_id() {
@@ -289,35 +291,35 @@ private:
         _config.set(cfg, get_self());
         return cfg.sender_id;
     }
-    uint64_t next_sched_no() {
-        auto cfg = _config.get_or_default({});
-        cfg.sched_no += 1;
-        _config.set(cfg, get_self());
-        return cfg.sched_no;
-    }
-    uint64_t incr_num_sched_users(uint32_t num) {
-        auto cfg = _config.get_or_default({});
-        cfg.num_sched_users += num;
-        _config.set(cfg, get_self());
-        return cfg.num_sched_users;
-    }
-    uint64_t desc_num_sched_users(uint32_t num) {
-        auto cfg = _config.get_or_default({});
-        cfg.num_sched_users -= num;
-        _config.set(cfg, get_self());
-        return cfg.num_sched_users;
-    }
-    uint64_t get_num_sched_users() {
-        if (_config.exists()) {
-            auto cfg = _config.get();
-            return cfg.num_sched_users;
-        } else {
-            auto cfg = _config.get_or_default({});
-            cfg.num_sched_users = 0;
-            _config.set(cfg, get_self());
-            return cfg.num_sched_users;
-        }
-    }
+    // uint64_t next_sched_no() {
+    //     auto cfg = _config.get_or_default({});
+    //     cfg.sched_no += 1;
+    //     _config.set(cfg, get_self());
+    //     return cfg.sched_no;
+    // }
+    // uint64_t incr_num_sched_users(uint32_t num) {
+    //     auto cfg = _config.get_or_default({});
+    //     cfg.num_sched_users += num;
+    //     _config.set(cfg, get_self());
+    //     return cfg.num_sched_users;
+    // }
+    // uint64_t desc_num_sched_users(uint32_t num) {
+    //     auto cfg = _config.get_or_default({});
+    //     cfg.num_sched_users -= num;
+    //     _config.set(cfg, get_self());
+    //     return cfg.num_sched_users;
+    // }
+    // uint64_t get_num_sched_users() {
+    //     if (_config.exists()) {
+    //         auto cfg = _config.get();
+    //         return cfg.num_sched_users;
+    //     } else {
+    //         auto cfg = _config.get_or_default({});
+    //         cfg.num_sched_users = 0;
+    //         _config.set(cfg, get_self());
+    //         return cfg.num_sched_users;
+    //     }
+    // }
     bool check_airdrop_flag() {
         auto cfg = _config.get_or_default({});
         if (cfg.airdrop_flag == 1) {
@@ -330,12 +332,31 @@ private:
         auto cfg = _config.get_or_default({});
         return cfg.token_exchange_rate;
     }
+    uint64_t update_global_seed(uint64_t seed) {
+        auto cfg = _config.get_or_default({});
+        cfg.global_seed += seed;
+        _config.set(cfg, get_self());
+        return cfg.global_seed;
+    }
+    uint64_t get_global_seed() {
+        auto cfg = _config.get_or_default({});
+        return cfg.global_seed;
+    }
+    uint64_t get_max_sched_user_in_pool() {
+        auto cfg = _config.get_or_default({});
+        return cfg.max_sched_user_in_pool;
+    }
     struct [[eosio::table]] st_account {
         eosio::asset    balance;
         uint64_t primary_key()const { return balance.symbol.code().raw(); }
     };
     typedef eosio::multi_index< "accounts"_n, st_account > accounts;
 
+    struct st_seed {
+        eosio::checksum256 seed1;
+        eosio::checksum256 seed2;
+        eosio::checksum256 seed3;
+    };
 public:
 
 #if DEBUG
@@ -426,7 +447,7 @@ public:
         time_t update_ts);
 
     [[eosio::action]] void enter(eosio::name user); // be sure that user is eosio.token
-    [[eosio::action]] void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);;
+    // [[eosio::action]] void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed);;
     [[eosio::action]] void schedhelper(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id);
 
     [[eosio::action]] void setremove();
@@ -444,9 +465,11 @@ public:
 
     [[eosio::action]] void setrate(uint64_t rate);
     [[eosio::action]] void setairdrop(uint32_t flag);
+    [[eosio::action]] void setschednum(uint64_t schednum);
     [[eosio::action]] void showconfig();
 
 private:
+    void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed);
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveup(eosio::name user, uint64_t gameuuid, uint32_t steps);

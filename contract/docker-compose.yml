@@ -5,12 +5,12 @@ services:
     build: .
     deploy:
       restart_policy:
-        condition: "on-failure"
+        condition: "always"
     command: ["node", "/opt/eosio/bin/rmexpired.js"]
 
   sendtokens:
     build: .
     deploy:
       restart_policy:
-        condition: "on-failure"
+        condition: "always"
     command: ["node", "/opt/eosio/bin/sendtokens.js"]

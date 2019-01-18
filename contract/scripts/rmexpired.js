@@ -13,12 +13,13 @@ const options = {
   sign: true
 };
 
+let eos = Eos({ keyProvider: defaultPrivateKey,
+                httpEndpoint: 'http://jungle2.cryptolions.io:80',
+                chainId: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473' });
+
+console.log("start to call action: rmexpired");
 
 const queryTable = async function () {
-  let eos = Eos({ keyProvider: defaultPrivateKey,
-                  httpEndpoint: 'http://jungle2.cryptolions.io:80',
-                  chainId: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473' });
-
   let results = await eos.getTableRows(true, contract, scope, table);
   console.log("========================================");
   let curr_ts = Date.now();
@@ -39,8 +40,20 @@ const queryTable = async function () {
       );
     }
   } else {
-      console.log("no expired");
+    console.log("no expired");
   }
 };
 
-setInterval(queryTable, 3000);
+function wrapper() {
+  let intervalHandle = setInterval(() => {
+    try {
+      queryTable();
+    } catch (error) {
+      console.log("catch error:");
+      console.log(error);
+      clearInterval(intervalHandle);
+    }
+  }, 3000);
+}
+
+wrapper();

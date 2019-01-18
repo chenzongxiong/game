@@ -138,62 +138,58 @@ void dice::forcesched(uint64_t seed) {
     require_auth(admin);
 
     time_t curr_ts = now();
-    // uint32_t TIMEOUT = 60;
-    uint32_t count = 0;
 
-    auto it = _waitingpool.begin();
-    auto next_it = it++;
-    auto end = _waitingpool.end();
+    pcg32_srandom_r(seed, (uint64_t)curr_ts);
+    uint128_t proof = 0;
+    proof |= (uint128_t)seed;
+    proof <<= 64;
+    proof |= (uint128_t)curr_ts;
 
-    while (it != end) {
-        time_t update_ts = it->update_ts;
-        uint32_t diff = curr_ts - update_ts;
-        if (it->sched_flag == 0 && diff >= SCHED_TIMEOUT) {
-            count ++;
-            eosio::print("force sched waiting users, ");
-            uint64_t user_id = it->uuid;
-            uint64_t gameuuid = it->gameuuid;
-            time_t ts = it->ts;
-            uint128_t sender_id = next_sender_id();
-            sched(user_id, gameuuid, ts, sender_id);
-        } else {
-            eosio::print("no need to foce sched waiting users");
+    for (auto &g : _games) {
+        if (g.status != GAME_START) { // only do scheduling for start game
+            continue;
         }
-        it = next_it;
-        if (next_it != end) {
-            next_it ++;
+
+        uint64_t sched_num = g.total_sched_number;
+        uint64_t max_sched_user_in_pool = get_max_sched_user_in_pool();
+        if (sched_num >= max_sched_user_in_pool) {
+            eosio::print("error here !!!");
+            eosio::print("sched_number: ", sched_num);
         } else {
-            break;
+            uint64_t num_to_sched = max_sched_user_in_pool - sched_num;
+            std::vector<st_users> latest_scheduling_users;
+            for (auto _user : _waitingpool) {
+                if (_user.gameuuid == g.uuid) {
+                    latest_scheduling_users.push_back(_user);
+                }
+            }
+            if (latest_scheduling_users.size() < num_to_sched) {
+                num_to_sched = latest_scheduling_users.size();
+            }
+            uint64_t i = 0;
+            while (i < num_to_sched) {         // forever looping ?
+                uint64_t idx = pcg32_boundedrand_r(num_to_sched);
+                auto _user = latest_scheduling_users[idx];
+                sched(_user.uuid, _user.gameuuid, curr_ts, proof);
+                i ++;
+            }
         }
     }
-
-    eosio::print("{");
-    eosio::print("\"count\": ", count, ", ");
-    eosio::print("\"msg\": \"forcesched successfully.\"");
-    eosio::print("}");
-
-
+    // eosio::print("{");
+    // eosio::print("\"count\": ", count, ", ");
+    // eosio::print("\"msg\": \"forcesched successfully.\"");
+    // eosio::print("}");
 }
 
-void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id) {
+void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed) {
     require_auth(admin);
-
-    // uint32_t block_num = tapos_block_num();
-    // uint32_t block_prefix = tapos_block_prefix();
 
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "bug ? st_game not found.");
     eosio_assert(_game->status == GAME_START, "bug ? st_game does not start");
-    uint128_t proof = 0;
-    // proof |= block_num;
-    // proof <<= 32;
-    // proof |= block_prefix;
-    // proof <<= 64;
+    uint128_t proof = seed;
     time_t curr_ts = now();
-    // proof |= (uint64_t)curr_ts;
     uint64_t platform_lucky_number = -1;
-    // uint64_t sched_no = next_sched_no();
-    // uint64_t num_sched_users = get_num_sched_users();
 
     time_t expired_ts = curr_ts + (_game->total_sched_number + 1) * SCHED_TIMEOUT;
     auto _user = _waitingpool.find(user_id);
@@ -241,7 +237,6 @@ void dice::sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sende
                                                u.expired_ts = expired_ts;
                                              });
 }
-
 void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
     require_auth(admin);
 
@@ -329,6 +324,15 @@ void dice::showconfig() {
     eosio::print("num_sched_users: ", cfg.num_sched_users, ", ");
     eosio::print("token_exchange_rate: ", cfg.token_exchange_rate, ", ");
     eosio::print("airdrop_flag: ", cfg.airdrop_flag, ", ");
+    eosio::print("global_seed: ", cfg.global_seed, ", ");
+
+}
+
+void dice::setschednum(uint64_t schednum) {
+    require_auth(admin);
+    auto cfg = _config.get_or_default({});
+    cfg.max_sched_user_in_pool = schednum;
+    _config.set(cfg, get_self());
 }
 
 void dice::setloguser(uint64_t uuid, uint64_t gameuuid, uint32_t steps,
@@ -435,6 +439,8 @@ void dice::enter(eosio::name user) {
             _games.modify(_game, get_self(), [&](auto &g) {
                                                  g.total_number ++;
                                              });
+            uint64_t seed = data.from.value + (uint64_t)(now());
+            update_global_seed(seed);
         } else {
             // come here because someone send request directly and doesn't
             // pay enough fee. Never open a door for him, but we accept his fee
@@ -495,9 +501,33 @@ void dice::toss(eosio::name user, uint64_t gameuuid, uint32_t seed) {
                     // this user doesn't toss yet
                     if (_user->expired_ts >= now()) {
                         // this user is still valid, not expired
+                        // size_t trx_size = transaction_size();
+                        std::string user_seed_str = std::to_string(seed);
+                        eosio::checksum256 user_seed = eosio::sha256(user_seed_str.c_str(),
+                                                                     user_seed_str.length());
 
+                        std::string global_seed_str = std::to_string(get_global_seed());
+                        eosio::checksum256 global_seed = eosio::sha256(global_seed_str.c_str(),
+                                                                       global_seed_str.length());
+                        update_global_seed(seed); // normal and hacker takes part in this game to update seed
 
-                        uint128_t proof = _user->proof;
+                        std::string platform_seed_str = std::to_string((uint64_t)_user->proof);
+                        eosio::checksum256 platform_seed = eosio::sha256(platform_seed_str.c_str(),
+                                                                         platform_seed_str.length());
+
+                        st_seed mixed_seed;
+                        mixed_seed.seed1 = user_seed;
+                        mixed_seed.seed2 = global_seed;
+                        mixed_seed.seed3 = platform_seed;
+
+                        eosio::checksum256 final_seed = eosio::sha256((char *)&mixed_seed.seed1, sizeof(st_seed));
+                        auto final_seed_arr = final_seed.get_array();
+
+                        uint128_t proof = 0;
+                        for (const auto &e : final_seed_arr) {
+                            proof += e;
+                        }
+
                         uint32_t dice_number = get_rnd_dice_number(proof);
 
                         eosio::print("{");
@@ -1036,6 +1066,7 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int 
     txn.send(next_sender_id(), from, false);
 }
 
+
 // void dice::debug(uint32_t steps) {
 //     require_auth(admin);
 
@@ -1089,11 +1120,12 @@ EOSIO_DISPATCH2(dice,
                 // (sched)
                 // (schedhelper)
                 (rmexpired)
-                // (forcesched)
+                (forcesched)
                 (setloguser)
                 (setloghero)
                 (setrate)
                 (setairdrop)
                 (showconfig)
+                (setschednum)
                 // (debug)
     )
