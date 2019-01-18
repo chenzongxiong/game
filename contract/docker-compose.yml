@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  rmexpired:
+    build: .
+    deploy:
+      restart_policy:
+        condition: "always"
+    command: ["node", "/opt/eosio/bin/rmexpired.js"]
+
+  sendtokens:
+    build: .
+    deploy:
+      restart_policy:
+        condition: "always"
+    command: ["node", "/opt/eosio/bin/sendtokens.js"]

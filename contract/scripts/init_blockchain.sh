@@ -54,11 +54,13 @@ cleos create account eosio player2 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5Y
 cleos create account eosio player3 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 cleos create account eosio player4 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 cleos create account eosio player5 EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
-cleos create account eosio platform EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
-cleos create account eosio divident EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+
+cleos create account eosio matrixcasino EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio matrixmaster EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio matrixdivide EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 
 # create account for MYEOS token
-cleos create account eosio myeos EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
+cleos create account eosio matrixtokens EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw
 
 # echo "=== deploy smart contract ==="
 # $1 smart contract name
@@ -75,10 +77,10 @@ cleos push action eosio.token issue '[ "player3", "100000000.0000 EOS", "player3
 cleos push action eosio.token issue '[ "player4", "100000000.0000 EOS", "player4" ]' -p cardgameacc@active
 cleos push action eosio.token issue '[ "player5", "100000000.0000 EOS", "player5" ]' -p cardgameacc@active
 
-cleos set contract myeos /opt/eosio/bin/contract/compiled_contracts/matr0x -p myeos@active
-cleos push action myeos create '["myeos", "1 MYEOS", ""]' -p myeos@active
-cleos push action myeos issue '["divident", "520000000.000000 MYEOS", "to divident pool"]' -p myeos@active
-cleos push action myeos issue '["platform", "480000000.000000 MYEOS", "to platform"]' -p myeos@active
+cleos set contract matrixtokens /opt/eosio/bin/contract/compiled_contracts/matr0x -p matrixtokens@active
+cleos push action matrixtokens create '["matrixtokens", "1 MYEOS", ""]' -p matrixtokens@active
+cleos push action matrixtokens issue '["matrixmaster", "520000000.000000 MYEOS", "to matrixmaster pool"]' -p matrixtokens@active
+cleos push action matrixtokens issue '["matrixcasino", "480000000.000000 MYEOS", "to matrixcasino"]' -p matrixtokens@active
 
 echo "=== create user accounts ==="
 # script for create data into blockchain
