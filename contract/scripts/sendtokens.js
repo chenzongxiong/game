@@ -1,22 +1,19 @@
 'use strict';
 
 const Eos = require('eosjs');
-const config = require('config.json');
+const configs = require('./config.json');
 
 let eosnet  = process.env.EOS_NET || 'testnet';
 
-if (eosnet === 'testnet') {
-  config = config.testnet;
-} else if (eosnet === 'mainet') {
-  config = config.mainet;
-}
+console.log("========================================");
+console.log(eosnet);
+console.log("========================================");
+
+let config = configs[eosnet];
+
 console.log("========================================");
 console.log(config);
 console.log("========================================");
-
-let contract = config.contract;
-let scope = config.scope;
-let table = 'winnertbl';
 
 const options = {
   authorization: 'matrixcasino@active',
@@ -28,9 +25,16 @@ let eos = Eos({ keyProvider: config.defaultPrivateKey,
                 chainId: config.chainId });
 
 
+let winner_params = {
+  json: true,
+  code: config.contract,
+  scope: config.scope,
+  table: "winnertbl",
+};
+
 const queryTable = async function () {
 
-  let results = await eos.getTableRows(true, contract, scope, table);
+  let results = await eos.getTableRows(winner_params);
   console.log("========================================");
 
   if (results.rows.length != 0) {

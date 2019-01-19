@@ -8,9 +8,10 @@ services:
         condition: "always"
     command: ["node", "/opt/eosio/bin/rmexpired.js"]
     environment:
-      - EOS_NET='testnet'
+      - EOS_NET=testnet
     volumes:
       - ./scripts/config.json:/opt/eosio/bin/config.json
+
   sendtokens:
     build: .
     deploy:
@@ -18,9 +19,10 @@ services:
         condition: "always"
     command: ["node", "/opt/eosio/bin/sendtokens.js"]
     environment:
-      - EOS_NET='testnet'
+      - EOS_NET=testnet
     volumes:
       - ./scripts/config.json:/opt/eosio/bin/config.json
+
   forcesched:
     build: .
     deploy:
@@ -28,6 +30,6 @@ services:
         condition: "always"
     command: ["node", "/opt/eosio/bin/forcesched.js"]
     environment:
-      - EOS_NET='testnet'
+      - EOS_NET=testnet
     volumes:
       - ./scripts/config.json:/opt/eosio/bin/config.json

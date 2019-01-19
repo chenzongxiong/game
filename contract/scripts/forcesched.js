@@ -1,27 +1,19 @@
 'use strict';
 
 const Eos = require('eosjs');
-const config = require('config.json');
+const configs = require('./config.json');
 
-let eosnet  = process.env.EOS_NET || 'testnet';
+let eosnet = process.env.EOS_NET || 'testnet';
 
-if (eosnet === 'testnet') {
-  config = config.testnet;
-} else if (eosnet === 'mainet') {
-  config = config.mainet;
-}
+console.log("========================================");
+console.log(eosnet);
+console.log("========================================");
+
+let config = configs[eosnet];
+
 console.log("========================================");
 console.log(config);
 console.log("========================================");
-
-let contract = config.contract;
-let scope = config.scope;
-let table = 'schedtbl';
-
-
-let contract = config.contract;
-let scope = config.scope;
-let table = 'waittbl';
 
 const options = {
   authorization: 'matrixcasino@active',
@@ -41,26 +33,25 @@ let MAX_SCHED_USER_IN_POOL = 10;
 
 let game_params = {
   json: true,
-  code: contract,
-  scope: scope,
+  code: config.contract,
+  scope: config.scope,
   table: 'gametbl',
 };
 let sched_params = {
   json: true,
-  code: contract,
-  scope: scope,
+  code: config.contract,
+  scope: config.scope,
   key_type: 'i64',
   index_position: '2',
   table: 'schedtbl',
   lower_bound: -1,
   upper_bound: -1,
-  // table_key:
   limit: 1000,
 };
 let wait_params = {
   json: true,
-  code: contract,
-  scope: scope,
+  code: config.contract,
+  scope: config.scope,
   key_type: 'i64',
   index_position: '2',
   table: 'waittbl',
