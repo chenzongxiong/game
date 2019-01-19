@@ -88,8 +88,8 @@ private:
 
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    // static constexpr uint32_t TIMEOUT_USERS = 45;
-    static constexpr uint32_t SCHED_TIMEOUT = 120;
+    // static constexpr uint32_t SCHED_TIMEOUT = 120;
+    static constexpr uint32_t SCHED_TIMEOUT = 90;
 
     struct point {
         uint32_t row;

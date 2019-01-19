@@ -811,7 +811,7 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
         eosio::print("}");
         // add it to winner_table
         uint64_t winner_id = _winners.available_primary_key();
-        uint64_t awards = 0;
+        int64_t awards = 0;
         if (_game->status == GAME_OVER) {
             // last goal
             // NOTE: how to deal with the rest people when st_game is closed
@@ -855,13 +855,13 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             eosio::permission_level{_self, "active"_n},
             _self, "setloghero"_n,
             std::make_tuple(
-                winner_id,
-                _game->uuid,
+                (uint64_t)winner_id,
+                (uint64_t)_game->uuid,
                 user,
-                awards,
-                0,
-                pt.row,
-                pt.col,
+                (int64_t)awards,
+                (int64_t)0,
+                (uint32_t)pt.row,
+                (uint32_t)pt.col,
                 now(),
                 now()
                 )).send();
@@ -920,23 +920,22 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                      });
     // update expired ts, since this user might only use 10s
     // at most N * 10 entry, N is the number of the game
-    // {
-    //     time_t curr_ts = now();
-    //     auto it = _scheduled_users.begin();
-    //     auto end = _scheduled_users.end();
-    //     uint32_t i = 0;
-    //     while (it != end) {
-    //         if (it->gameuuid == _game->uuid) {
-    //             i ++;
-    //             _scheduled_users.modify(it, get_self(), [&](auto &u) {
-    //                                                         u.expired_ts = curr_ts + i * SCHED_TIMEOUT;
-    //                                                         u.update_ts = curr_ts;
-    //                                                     });
-    //         }
-    //         it ++;
-    //     }
-    // }
-
+    {
+        time_t curr_ts = now();
+        auto it = _scheduled_users.begin();
+        auto end = _scheduled_users.end();
+        uint32_t i = 0;
+        while (it != end) {
+            if (it->gameuuid == _game->uuid) {
+                i ++;
+                _scheduled_users.modify(it, get_self(), [&](auto &u) {
+                                                            u.expired_ts = curr_ts + i * SCHED_TIMEOUT;
+                                                            u.update_ts = curr_ts;
+                                                        });
+            }
+            it ++;
+        }
+    }
 }
 
 /*********************************************************************************
@@ -1123,6 +1122,9 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int 
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
         void apply( uint64_t receiver, uint64_t code, uint64_t action ) { \
+            if (eosio::name(action) == "onerror"_n) {                   \
+                eosio_assert(eosio::name(code) == "eosio"_n, "onerror action are only valid from the \"eosio\" system account"); \
+            }                                                           \
             /* https://mp.weixin.qq.com/s/1sV2ps1n6pPNb-0qiTXG9Q */     \
             if (code == receiver and  eosio::name(action) != "enter"_n) { \
                 switch ( action ) {                                     \
