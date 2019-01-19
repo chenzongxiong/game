@@ -1,0 +1,22 @@
+* deployment steps
+  - distribute tokens, MYEOS, 1,000,000,000 tokens
+    + matrixcasino: 480000000
+    + matrixmaster: 520000000
+
+    testnet
+    #+BEGIN_SRC sh
+    cleos -u http://jungle2.cryptolions.io:80 push action matrixtokens create '["matrixtokens", "1000000000.000000 MYEOS", "create tokens"]' -p matrixtokens@active
+    cleos -u http://jungle2.cryptolions.io:80 push action matrixtokens issue '["matrixmaster", "520000000.000000 MYEOS", "to matrixmaster pool"]' -p matrixtokens@active
+    cleos -u http://jungle2.cryptolions.io:80 push action matrixtokens issue '["matrixcasino", "480000000.000000 MYEOS", "to matrixcasino"]' -p matrixtokens@active
+    #+END_SRC
+
+    mainet
+    #+BEGIN_SRC sh
+    cleos -u https://proxy.eosnode.tools:443 push action matrixtokens create '["matrixtokens", "1000000000.000000 MYEOS", "create tokens"]' -p matrixtokens@active
+    cleos -u https://proxy.eosnode.tools:443 push action matrixtokens issue '["matrixmaster", "520000000.000000 MYEOS", "to matrixmaster pool"]' -p matrixtokens@active
+    cleos -u https://proxy.eosnode.tools:443 push action matrixtokens issue '["matrixcasino", "480000000.000000 MYEOS", "to matrixcasino"]' -p matrixtokens@active
+    #+END_SRC
+  - deploy matrixcasino contract
+    + import private key
+    + deploy contract
+    + start docker service
