@@ -1,11 +1,21 @@
 'use strict';
 
 const Eos = require('eosjs');
+const config = require('config.json');
 
-const defaultPrivateKey = "5KFyaxQW8L6uXFB6wSgC44EsAbzC7ideyhhQ68tiYfdKQp69xKo";
+let eosnet  = process.env.EOS_NET || 'testnet';
 
-let contract = 'matrixcasino';
-let scope = 'matrixcasino';
+if (eosnet === 'testnet') {
+  config = config.testnet;
+} else if (eosnet === 'mainet') {
+  config = config.mainet;
+}
+console.log("========================================");
+console.log(config);
+console.log("========================================");
+
+let contract = config.contract;
+let scope = config.scope;
 let table = 'winnertbl';
 
 const options = {
@@ -13,9 +23,9 @@ const options = {
   sign: true
 };
 
-let eos = Eos({ keyProvider: defaultPrivateKey,
-                httpEndpoint: 'http://jungle2.cryptolions.io:80',
-                chainId: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473' });
+let eos = Eos({ keyProvider: config.defaultPrivateKey,
+                httpEndpoint: config.httpEndpoint,
+                chainId: config.chainId });
 
 
 const queryTable = async function () {
@@ -31,6 +41,7 @@ const queryTable = async function () {
           console.log(trx.transaction_id);
         }).catch(e => {
           console.log("error", e);
+          process.exit(1);
         });
       }
     );
@@ -39,4 +50,4 @@ const queryTable = async function () {
   }
 };
 
-setInterval(queryTable, 3000);
+setInterval(queryTable, config.sendtoken_interval);

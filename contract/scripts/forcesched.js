@@ -1,11 +1,26 @@
 'use strict';
 
 const Eos = require('eosjs');
+const config = require('config.json');
 
-const defaultPrivateKey = "5KFyaxQW8L6uXFB6wSgC44EsAbzC7ideyhhQ68tiYfdKQp69xKo";
+let eosnet  = process.env.EOS_NET || 'testnet';
 
-let contract = 'matrixcasino';
-let scope = 'matrixcasino';
+if (eosnet === 'testnet') {
+  config = config.testnet;
+} else if (eosnet === 'mainet') {
+  config = config.mainet;
+}
+console.log("========================================");
+console.log(config);
+console.log("========================================");
+
+let contract = config.contract;
+let scope = config.scope;
+let table = 'schedtbl';
+
+
+let contract = config.contract;
+let scope = config.scope;
 let table = 'waittbl';
 
 const options = {
@@ -13,9 +28,9 @@ const options = {
   sign: true
 };
 
-let eos = Eos({ keyProvider: defaultPrivateKey,
-                httpEndpoint: 'http://jungle2.cryptolions.io:80',
-                chainId: 'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473' });
+let eos = Eos({ keyProvider: config.defaultPrivateKey,
+                httpEndpoint: config.httpEndpoint,
+                chainId: config.chainId });
 
 console.log("start to call action: forcesched");
 
@@ -52,7 +67,8 @@ let wait_params = {
   limit: 1000,
 };
 
-let seed = 0;
+let max = config.random_max;
+let min = config.random_min;
 
 const queryTable = async function () {
   let game_results = await eos.getTableRows(game_params);
@@ -78,6 +94,7 @@ const queryTable = async function () {
             let contract_instance = await eos.contract(contract);
 
             try {
+              let seed = Math.floor(Math.random() * (max - min)) + min;
               let param = {
                 gameuuid: row.uuid,
                 seed: seed
@@ -106,7 +123,7 @@ function wrapper() {
       clearInterval(intervalHandle);
       process.exit(1);
     }
-  }, 10000);
+  }, config.sched_interval);
 }
 
 wrapper();

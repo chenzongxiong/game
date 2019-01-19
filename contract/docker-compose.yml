@@ -7,16 +7,27 @@ services:
       restart_policy:
         condition: "always"
     command: ["node", "/opt/eosio/bin/rmexpired.js"]
-
+    environment:
+      - EOS_NET='testnet'
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
   sendtokens:
     build: .
     deploy:
       restart_policy:
         condition: "always"
     command: ["node", "/opt/eosio/bin/sendtokens.js"]
+    environment:
+      - EOS_NET='testnet'
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
   forcesched:
     build: .
     deploy:
       restart_policy:
         condition: "always"
     command: ["node", "/opt/eosio/bin/forcesched.js"]
+    environment:
+      - EOS_NET='testnet'
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
