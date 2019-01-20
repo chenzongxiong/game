@@ -2,10 +2,9 @@
 
 
 // action
-#if DEBUG
-void dice::version() {
-    eosio::print(this->_VERSION.c_str());
-}
+// void dice::version() {
+//     eosio::print(this->_VERSION.c_str());
+// }
 
 void dice::clear2(std::string tbl) {
     require_auth(admin);
@@ -57,7 +56,32 @@ void dice::clear2(std::string tbl) {
         _config.remove();
     }
 }
-#endif
+void dice::clear3(std::string tbl, uint64_t uuid) {
+    require_auth(admin);
+    if (tbl == "config") {
+        _config.remove();
+    }
+    if (tbl == "waittbl") {
+        auto u = _waitingpool.find(uuid);
+        eosio_assert(u != _waitingpool.cend(), "not found user");
+        _waitingpool.erase(u);
+    }
+    if (tbl == "schedtbl") {
+        auto u = _scheduled_users.find(uuid);
+        eosio_assert(u != _scheduled_users.cend(), "not found user");
+        _scheduled_users.erase(u);
+    }
+    if (tbl == "herotbl") {
+        auto u = _heroes.find(uuid);
+        eosio_assert(u != _heroes.cend(), "not found user");
+        _heroes.erase(u);
+    }
+    if (tbl == "winnertbl") {
+        auto u = _winners.find(uuid);
+        eosio_assert(u != _winners.cend(), "not found user");
+        _winners.erase(u);
+    }
+}
 /********************************************************************************
  * administrator actions
  ********************************************************************************/
@@ -140,6 +164,23 @@ void dice::rmexpired() {
 
         } else {
             it3 ++;
+        }
+    }
+}
+void dice::rmwaitusers(uint64_t gameuuid) {
+    require_auth(admin);
+    auto _game = _games.find(gameuuid);
+    eosio_assert(_game != _games.cend(), "not found this game");
+    eosio_assert(_game->status == GAME_OVER, "game is not over");
+
+    auto it = _waitingpool.begin();
+    auto end = _waitingpool.end();
+    while (it != end) {
+        if (it->gameuuid == gameuuid &&
+            it->sched_flag == 1) {
+            it = _waitingpool.erase(it);
+        } else {
+            it ++;
         }
     }
 }
@@ -1154,8 +1195,8 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int 
 
 
 EOSIO_DISPATCH2(dice,
-                (version)
                 (clear2)
+                (clear3)
                 (addgame)
                 (setgamestat)
                 (move)
@@ -1169,4 +1210,5 @@ EOSIO_DISPATCH2(dice,
                 (setairdrop)
                 (showconfig)
                 (setschednum)
+                (rmwaitusers)
     )

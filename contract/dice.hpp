@@ -40,8 +40,6 @@
  */
 
 
-#define DEBUG 1
-
 struct eosio_token_transfer {
     eosio::name from;
     eosio::name to;
@@ -359,10 +357,6 @@ private:
     };
 public:
 
-#if DEBUG
-    [[eosio::action]] void version();
-#endif
-
 private:
     typedef eosio::singleton<"config"_n, st_config> config_singleton;
     config_singleton _config;
@@ -418,11 +412,8 @@ private:
 public:
     [[eosio::action]] void addgame(eosio::name gamename, uint32_t width,
                                    uint32_t height, uint32_t status, int64_t fee);
-#if DEBUG
     [[eosio::action]] void clear2(std::string tbl);
-    // [[eosio::action]] void debug(uint32_t steps);
-#endif
-    // [[eosio::action]] void startgame(uint64_t gameuuid);
+    [[eosio::action]] void clear3(std::string tbl, uint64_t uuid);
     [[eosio::action]] void setgamestat(uint64_t gameuuid, uint32_t status);
 
     [[eosio::action]] void setloguser(uint64_t uuid,
@@ -461,6 +452,7 @@ public:
 
     [[eosio::action]] void rmexpired();
     [[eosio::action]] void forcesched(uint64_t gameuuid, uint64_t seed);
+    [[eosio::action]] void rmwaitusers(uint64_t gameuuid);
     // helper functions
 
     [[eosio::action]] void setrate(uint64_t rate);
