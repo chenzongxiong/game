@@ -33,3 +33,36 @@ services:
       - EOS_NET=testnet
     volumes:
       - ./scripts/config.json:/opt/eosio/bin/config.json
+
+  rmexpiredmain:
+    build: .
+    deploy:
+      restart_policy:
+        condition: "always"
+    command: ["node", "/opt/eosio/bin/rmexpired.js"]
+    environment:
+      - EOS_NET=mainet
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
+
+  sendtokensmain:
+    build: .
+    deploy:
+      restart_policy:
+        condition: "always"
+    command: ["node", "/opt/eosio/bin/sendtokens.js"]
+    environment:
+      - EOS_NET=mainet
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
+
+  forceschedmain:
+    build: .
+    deploy:
+      restart_policy:
+        condition: "always"
+    command: ["node", "/opt/eosio/bin/forcesched.js"]
+    environment:
+      - EOS_NET=mainet
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
