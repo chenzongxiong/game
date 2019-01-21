@@ -82,7 +82,7 @@ const queryTable = async function () {
           console.log("Item: ", i, ", gameuuid: ", wait_results.rows[i].gameuuid);
           if (wait_results.rows[i].sched_flag === 0) {
             console.log("force sched");
-            let contract_instance = await eos.contract(contract);
+            let contract_instance = await eos.contract(config.contract);
 
             try {
               let seed = Math.floor(Math.random() * (max - min)) + min;

@@ -39,7 +39,7 @@ const queryTable = async function () {
 
   if (results.rows.length != 0) {
     let row = results.rows[0];
-    eos.contract(contract).then(
+    eos.contract(config.contract).then(
       ctx => {
         ctx.sendtokens(row['user'], row['gameuuid'], options).then(trx => {
           console.log(trx.transaction_id);

@@ -64,7 +64,7 @@ const queryTable = async function () {
       let row = sched_results.rows[0];
       if (row.expired_ts < curr_ts) {
         console.log("********************remove expired********************");
-        eos.contract(contract).then(
+        eos.contract(config.contract).then(
           ctx => {
             ctx.rmexpired(options).then(trx => {
               console.log(trx.transaction_id);
