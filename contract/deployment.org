@@ -2,9 +2,13 @@
   - distribute tokens, MYEOS, 1,000,000,000 tokens
     + matrixcasino: 480000000
     + matrixmaster: 520000000
+    + buy ram, stake cpu/net
+      cleos -u https://proxy.eosnode.tools:443 system delegatebw czxczfczxczf matrixtokens "2 EOS" "2 EOS" -p czxczfczxczf
+      cleos -u https://proxy.eosnode.tools:443 system buyram czxczfczxczf matrixtokens "20 EOS"
 
     testnet
     #+BEGIN_SRC sh
+    cleos -u http://jungle2.cryptolions.io:80 set contract matrixtokens /opt/eosio/bin/contract/compiled_contracts/matr0x -p matrixtokens@active
     cleos -u http://jungle2.cryptolions.io:80 push action matrixtokens create '["matrixtokens", "1000000000.000000 MYEOS", "create tokens"]' -p matrixtokens@active
     cleos -u http://jungle2.cryptolions.io:80 push action matrixtokens issue '["matrixmaster", "520000000.000000 MYEOS", "to matrixmaster pool"]' -p matrixtokens@active
     cleos -u http://jungle2.cryptolions.io:80 push action matrixtokens issue '["matrixcasino", "480000000.000000 MYEOS", "to matrixcasino"]' -p matrixtokens@active
@@ -12,6 +16,7 @@
 
     mainet
     #+BEGIN_SRC sh
+    cleos -u https://proxy.eosnode.tools:443 set contract matrixtokens /opt/eosio/bin/contract/compiled_contracts/matr0x -p matrixtokens@active
     cleos -u https://proxy.eosnode.tools:443 push action matrixtokens create '["matrixtokens", "1000000000.000000 MYEOS", "create tokens"]' -p matrixtokens@active
     cleos -u https://proxy.eosnode.tools:443 push action matrixtokens issue '["matrixmaster", "520000000.000000 MYEOS", "to matrixmaster pool"]' -p matrixtokens@active
     cleos -u https://proxy.eosnode.tools:443 push action matrixtokens issue '["matrixcasino", "480000000.000000 MYEOS", "to matrixcasino"]' -p matrixtokens@active
@@ -20,3 +25,13 @@
     + import private key
     + deploy contract
     + start docker service
+    + buy ram, stake cpu/net
+      cleos -u https://proxy.eosnode.tools:443 system delegatebw czxczfczxczf matrixcasino "10 EOS" "10 EOS" -p czxczfczxczf
+      cleos -u https://proxy.eosnode.tools:443 system buyram czxczfczxczf matrixcasino "80 EOS"
+
+
+  #+BEGIN_SRC sh
+  cleos -u https://proxy.eosnode.tools:443 set contract matrixcasino /opt/eosio/bin/contract/compiled_contracts/dice --permission matrixcasino
+  cleos -u https://proxy.eosnode.tools:443 push action matrixcasino setrate '[15]' -p matrixcasino
+  cleos -u https://proxy.eosnode.tools:443 push action matrixcasino setairdrop '[1]' -p matrixcasino
+  #+END_SRC
