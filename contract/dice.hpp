@@ -68,12 +68,17 @@ private:
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr uint32_t MAXSIZE = 50;
 
-    static constexpr float WINNER_PERCENT = 0.7;
-    static constexpr float PARTICIPANTS_PERCENT = 0.1;
-    static constexpr float PLATFORM_PERCENT  = 0.05;
-    static constexpr float NEXT_GOAL_PERCENT = 0.05;
+    // static constexpr float WINNER_PERCENT = 0.7;
+    // static constexpr float PARTICIPANTS_PERCENT = 0.1;
+    // static constexpr float PLATFORM_PERCENT  = 0.05;
+    // static constexpr float NEXT_GOAL_PERCENT = 0.05;
+    // static constexpr float LAST_GOAL_PERCENT = 0.05;
+    // static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
+    static constexpr float WINNER_PERCENT = 0.82;
+    static constexpr float PLATFORM_PERCENT  = 0.03;
+    static constexpr float NEXT_GOAL_PERCENT = 0.10;
     static constexpr float LAST_GOAL_PERCENT = 0.05;
-    static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
+    static constexpr float DIVIDEND_POOL_PERCENT = 0.00;
 
     static constexpr eosio::name dividend_account = "matrixdivide"_n;
     static constexpr eosio::name platform = "matrixmaster"_n;

@@ -3,9 +3,7 @@ version: '3'
 services:
   rmexpired:
     build: .
-    deploy:
-      restart_policy:
-        condition: "always"
+    restart: on-failure
     command: ["node", "/opt/eosio/bin/rmexpired.js"]
     environment:
       - EOS_NET=testnet
@@ -14,9 +12,7 @@ services:
 
   sendtokens:
     build: .
-    deploy:
-      restart_policy:
-        condition: "always"
+    restart: on-failure
     command: ["node", "/opt/eosio/bin/sendtokens.js"]
     environment:
       - EOS_NET=testnet
@@ -25,9 +21,7 @@ services:
 
   forcesched:
     build: .
-    deploy:
-      restart_policy:
-        condition: "always"
+    restart: on-failure
     command: ["node", "/opt/eosio/bin/forcesched.js"]
     environment:
       - EOS_NET=testnet
@@ -36,9 +30,7 @@ services:
 
   rmexpiredmain:
     build: .
-    deploy:
-      restart_policy:
-        condition: "always"
+    restart: on-failure
     command: ["node", "/opt/eosio/bin/rmexpired.js"]
     environment:
       - EOS_NET=mainet
@@ -47,9 +39,7 @@ services:
 
   sendtokensmain:
     build: .
-    deploy:
-      restart_policy:
-        condition: "always"
+    restart: on-failure
     command: ["node", "/opt/eosio/bin/sendtokens.js"]
     environment:
       - EOS_NET=mainet
@@ -58,9 +48,7 @@ services:
 
   forceschedmain:
     build: .
-    deploy:
-      restart_policy:
-        condition: "always"
+    restart: on-failure
     command: ["node", "/opt/eosio/bin/forcesched.js"]
     environment:
       - EOS_NET=mainet

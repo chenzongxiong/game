@@ -1102,7 +1102,7 @@ void dice::distribute(const st_game& _game,
     // PARTICIPANTS get PARTICPANTS PERCENTS
     // DONE: reach a goal, we distribute token to all participants, just for fun.
     int64_t winner_amount = awards * WINNER_PERCENT;
-    int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
+    // int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
     int64_t platform_amount = awards * PLATFORM_PERCENT;
     int64_t dividend_pool_amount = awards * DIVIDEND_POOL_PERCENT;
     int64_t next_goal_amount = awards * NEXT_GOAL_PERCENT;
@@ -1118,9 +1118,10 @@ void dice::distribute(const st_game& _game,
     }
 
     // to dividend pool
-    if (dividend_pool_amount > 0) {
-        inner_transfer(get_self(), dividend_account, dividend_pool_amount, 0);
-    }
+    // if (dividend_pool_amount > 0) {
+    //     inner_transfer(get_self(), dividend_account, dividend_pool_amount, 0);
+    // }
+
     // to our platform
     if (platform_amount > 0) {
         inner_transfer(get_self(), platform, platform_amount, 0);
@@ -1129,13 +1130,14 @@ void dice::distribute(const st_game& _game,
     // to all participants, for fun
     // here we use defer transaction to make sure it will be successfully even though
     // the size of participants is rather larger
-    pcg32_srandom_r(now(), initseq);
-    if (participants_amount > 0) {
-        for (auto part : participants) {
-            uint32_t delay = pcg32_boundedrand_r(30) + 2;
-            inner_transfer(get_self(), part, participants_amount, delay);
-        }
-    }
+
+    // pcg32_srandom_r(now(), initseq);
+    // if (participants_amount > 0) {
+    //     for (auto part : participants) {
+    //         uint32_t delay = pcg32_boundedrand_r(30) + 2;
+    //         inner_transfer(get_self(), part, participants_amount, delay);
+    //     }
+    // }
 
     incr_game_awards(_game, next_goal_amount);
 }
@@ -1148,7 +1150,7 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int 
     // https://blog.csdn.net/ITleaks/article/details/83069431
     // https://blog.csdn.net/ITleaks/article/details/83378319
     eosio::transaction txn {};
-    std::string memo = std::string("Congratulations. You got ") + std::to_string(amount) + std::string(" EOS");
+    std::string memo = std::string("Congratulations. You got ") + std::to_string(amount/10000.0) + std::string(" EOS");
     txn.actions.emplace_back(
         eosio::permission_level{ from, permission },
         "eosio.token"_n, "transfer"_n,
