@@ -75,7 +75,7 @@ private:
     static constexpr float LAST_GOAL_PERCENT = 0.05;
     static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
 
-    static constexpr eosio::name dividend_account = "matroxdivend"_n;
+    static constexpr eosio::name dividend_account = "matrixdivide"_n;
     static constexpr eosio::name platform = "matrixmaster"_n;
     static constexpr eosio::name admin = "matrixcasino"_n;
     static constexpr eosio::name token_account = "matrixtokens"_n;
@@ -112,17 +112,53 @@ private:
         // }
     };
 
-    std::vector<point> centroids = {point(0, 0),
-                                    point(9, 0),
-                                    point(21, 0),
-                                    point(13, 7),
-                                    point(0, 9),
-                                    point(21, 10),
-                                    point(7, 13),
-                                    point(15, 15),
-                                    point(0, 21),
-                                    point(10, 21),
-                                    point(21, 21)};
+    std::vector<point> centroids23x23 = {point(0, 0),
+                                         point(9, 0),
+                                         point(21, 0),
+                                         point(13, 7),
+                                         point(0, 9),
+                                         point(21, 10),
+                                         point(7, 13),
+                                         point(15, 15),
+                                         point(0, 21),
+                                         point(10, 21),
+                                         point(21, 21)};
+
+    std::vector<point> centroids21x21 = {point(2, 1),
+                                         point(9, 2),
+                                         point(18, 3),
+                                         point(12, 8),
+                                         point(1, 9),
+                                         point(19, 10),
+                                         point(8, 12),
+                                         point(14, 14),
+                                         point(3, 18),
+                                         point(9, 19),
+                                         point(18, 19)};
+
+    std::vector<point> centroids19x19 = {point(2, 2),
+                                         point(8, 2),
+                                         point(16, 3),
+                                         point(11, 7),
+                                         point(2, 8),
+                                         point(17, 9),
+                                         point(7, 11),
+                                         point(12, 12),
+                                         point(3, 16),
+                                         point(9, 17),
+                                         point(17, 17)};
+
+    std::vector<point> centroids17x17 = {point(2, 2),
+                                         point(7, 1),
+                                         point(13, 2),
+                                         point(8, 6),
+                                         point(1, 7),
+                                         point(13, 7),
+                                         point(6, 8),
+                                         point(10, 10),
+                                         point(2, 13),
+                                         point(7, 13),
+                                         point(13, 12)};
 
     bool is_valid_steps (uint16_t steps) {
         if (steps >= 1 && steps <= 6 ) {

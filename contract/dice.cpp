@@ -93,12 +93,25 @@ void dice::addgame(eosio::name gamename, uint32_t width,
     eosio_assert(fee > 0, "fee < 0");
     eosio_assert(MAXSIZE > width, "width > MAXSIZE, invalid");
     eosio_assert(MAXSIZE > height, "height > MAXSIZE, invalid");
-    eosio_assert(width >= 23, "width < 23, invalid");
-    eosio_assert(height >= 23, "height < 23, invalid");
+    // eosio_assert(width >= 23, "width < 23, invalid");
+    // eosio_assert(height >= 23, "height < 23, invalid");
     eosio_assert(status == GAME_CLOSE || status == GAME_START, "invalid status");
     // NOTE: only access by our platform, so it's safe to use timestamp as a random number see
     pcg32_srandom_r(now(), initseq);
     // 1. randomly pick a point as initalized points
+    std::vector<point> *centroids_ptr = nullptr;
+    if (width == 23 && height == 23) {
+        centroids_ptr = &centroids23x23;
+    } else if (width == 21 && height == 21) {
+        centroids_ptr = &centroids21x21;
+    } else if (width == 19 && height == 19) {
+        centroids_ptr = &centroids19x19;
+    } else if (width == 17 && height == 17) {
+        centroids_ptr = &centroids17x17;
+    } else {
+        eosio_assert(false, "error height & width");
+    }
+    std::vector<point> &centroids = *centroids_ptr;
     uint32_t idx = pcg32_boundedrand_r(centroids.size());
     point pt = centroids[idx];
     uint32_t pos = pt.to_pos();
@@ -307,14 +320,14 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
 
     std::vector<eosio::name> participants;
 
-    for (auto _u : _waitingpool) {
-        if (_u.sched_flag == 0) {
-            participants.push_back(_u.user);
-        }
-    }
-    for (auto _u : _scheduled_users) {
-        participants.push_back(_u.user);
-    }
+    // for (auto _u : _waitingpool) {
+    //     if (_u.sched_flag == 0) {
+    //         participants.push_back(_u.user);
+    //     }
+    // }
+    // for (auto _u : _scheduled_users) {
+    //     participants.push_back(_u.user);
+    // }
 
     distribute(*_game,
                user,
@@ -325,36 +338,36 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
 
     _winners.erase(_winner);
 
-    if (_game->status == GAME_OVER) {
-        // clear all waiting users in this st_game
-        const uint32_t action_per_txn = 10;
-        auto it2 = _waitingpool.begin();
-        eosio::transaction txn {};
-        while (it2 != _waitingpool.end()) {
-            if (it2->gameuuid == _game->uuid) {
-                _games.modify(_game, get_self(), [&](auto &g){
-                                                     g.total_number --;
-                                                     });
-                it2 = _waitingpool.erase(it2);
-            } else {
-                it2 ++;
-            }
-        }
-        // clear all sched users in this st_game
-        txn.actions.clear();
-        auto it3 = _scheduled_users.begin();
-        while (it3 != _scheduled_users.end()) {
-            if (it3->gameuuid == _game->uuid) {
-                // auto _game = _games.find(it3->gameuuid);
-                _games.modify(_game, get_self(), [&](auto &g){
-                                                     g.total_sched_number --;
-                                                 });
-                it3 = _scheduled_users.erase(it3);
-            } else {
-                it3 ++;
-            }
-        }
-    }
+    // if (_game->status == GAME_OVER) {
+    //     // clear all waiting users in this st_game
+    //     const uint32_t action_per_txn = 10;
+    //     auto it2 = _waitingpool.begin();
+    //     eosio::transaction txn {};
+    //     while (it2 != _waitingpool.end()) {
+    //         if (it2->gameuuid == _game->uuid) {
+    //             _games.modify(_game, get_self(), [&](auto &g){
+    //                                                  g.total_number --;
+    //                                                  });
+    //             it2 = _waitingpool.erase(it2);
+    //         } else {
+    //             it2 ++;
+    //         }
+    //     }
+    //     // clear all sched users in this st_game
+    //     txn.actions.clear();
+    //     auto it3 = _scheduled_users.begin();
+    //     while (it3 != _scheduled_users.end()) {
+    //         if (it3->gameuuid == _game->uuid) {
+    //             // auto _game = _games.find(it3->gameuuid);
+    //             _games.modify(_game, get_self(), [&](auto &g){
+    //                                                  g.total_sched_number --;
+    //                                              });
+    //             it3 = _scheduled_users.erase(it3);
+    //         } else {
+    //             it3 ++;
+    //         }
+    //     }
+    // }
 }
 
 void dice::setrate(uint64_t rate) {
@@ -870,8 +883,8 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                          });
             awards = _game->shadow_awards;
 
-            desc_game_awards(*_game, _game->awards);
             desc_game_shadow_awards(*_game, _game->shadow_awards);
+            desc_game_awards(*_game, _game->awards);
             // TOOD: remove all users in this game from waiting table and scheduled table
         } else {
             _winners.emplace(get_self(), [&](auto &w) {
@@ -887,8 +900,8 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                    });
             awards = _game->awards;
 
-            desc_game_awards(*_game, _game->awards);
             desc_game_shadow_awards(*_game, _game->awards);
+            desc_game_awards(*_game, _game->awards);
         }
 
         // log for add winer user into pool
