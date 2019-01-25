@@ -520,6 +520,12 @@ void dice::enter(eosio::name user) {
                 }
             }
 
+            // platform profit
+            int64_t platform_amount = data.quantity.amount * PLATFORM_PERCENT;
+            if (platform_amount > 0) {
+                inner_transfer(get_self(), platform, platform_amount, 0);
+            }
+            // TODO: dividend pool
         } else {
             // come here because someone send request directly and doesn't
             // pay enough fee. Never open a door for him, but we accept his fee
@@ -1103,8 +1109,8 @@ void dice::distribute(const st_game& _game,
     // DONE: reach a goal, we distribute token to all participants, just for fun.
     int64_t winner_amount = awards * WINNER_PERCENT;
     // int64_t participants_amount = (awards * PARTICIPANTS_PERCENT) / participants.size();
-    int64_t platform_amount = awards * PLATFORM_PERCENT;
-    int64_t dividend_pool_amount = awards * DIVIDEND_POOL_PERCENT;
+    // int64_t platform_amount = awards * PLATFORM_PERCENT;
+    // int64_t dividend_pool_amount = awards * DIVIDEND_POOL_PERCENT;
     int64_t next_goal_amount = awards * NEXT_GOAL_PERCENT;
     // int64_t last_goal_amount = awards * LAST_GOAL_PERCENT;
 
@@ -1123,9 +1129,9 @@ void dice::distribute(const st_game& _game,
     // }
 
     // to our platform
-    if (platform_amount > 0) {
-        inner_transfer(get_self(), platform, platform_amount, 0);
-    }
+    // if (platform_amount > 0) {
+    //     inner_transfer(get_self(), platform, platform_amount, 0);
+    // }
 
     // to all participants, for fun
     // here we use defer transaction to make sure it will be successfully even though

@@ -74,11 +74,20 @@ private:
     // static constexpr float NEXT_GOAL_PERCENT = 0.05;
     // static constexpr float LAST_GOAL_PERCENT = 0.05;
     // static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
-    static constexpr float WINNER_PERCENT = 0.82;
-    static constexpr float PLATFORM_PERCENT  = 0.03;
+
+    // static constexpr float WINNER_PERCENT = 0.82;
+    // static constexpr float PLATFORM_PERCENT  = 0.03;
+    // static constexpr float NEXT_GOAL_PERCENT = 0.10;
+    // static constexpr float LAST_GOAL_PERCENT = 0.05;
+    // static constexpr float DIVIDEND_POOL_PERCENT = 0.00;
+
+    // 1 step
+    static constexpr float PLATFORM_PERCENT  = 0.02;
+    static constexpr float DIVIDEND_POOL_PERCENT = 0.00;
+    // 2 step
+    static constexpr float WINNER_PERCENT = 0.85;
     static constexpr float NEXT_GOAL_PERCENT = 0.10;
     static constexpr float LAST_GOAL_PERCENT = 0.05;
-    static constexpr float DIVIDEND_POOL_PERCENT = 0.00;
 
     static constexpr eosio::name dividend_account = "matrixdivide"_n;
     static constexpr eosio::name platform = "matrixmaster"_n;
@@ -117,6 +126,7 @@ private:
         // }
     };
 
+    // within 9 steps
     std::vector<point> centroids23x23 = {point(0, 0),
                                          point(9, 0),
                                          point(21, 0),
@@ -128,7 +138,7 @@ private:
                                          point(0, 21),
                                          point(10, 21),
                                          point(21, 21)};
-
+    // within 7 steps
     std::vector<point> centroids21x21 = {point(2, 1),
                                          point(9, 2),
                                          point(18, 3),
@@ -140,7 +150,7 @@ private:
                                          point(3, 18),
                                          point(9, 19),
                                          point(18, 19)};
-
+    // within 6 steps
     std::vector<point> centroids19x19 = {point(2, 2),
                                          point(8, 2),
                                          point(16, 3),
@@ -152,7 +162,7 @@ private:
                                          point(3, 16),
                                          point(9, 17),
                                          point(17, 17)};
-
+    // within 5 steps
     std::vector<point> centroids17x17 = {point(2, 2),
                                          point(7, 1),
                                          point(13, 2),
