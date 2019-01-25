@@ -1,0 +1,22 @@
+* Services
+** ./scripts/forcesched.js
+   This service will schedule users in waiting pool every 10 seconds, and put at most 10 users into
+   waiting queue.
+** ./scripts/rmexpired.js
+   This service will run every 3 seconds. It will remove expired users in waiting queue (*schedtbl*).
+** ./scripts/sendtokens.js
+   This service will run every 3 seconds. It will scan *winnertal* and send awards to winner. Only *winnertbl*
+   isn't empty, it will trigger transaction on the chain.
+
+
+* Dockerize all the services: docker-compose.yml, Dockerfile
+
+  All this three services are maintained by *docker-compose.yml* and set *restart=always*.
+  So these services would be always online since the docker daemon is supervised by *systemd*
+  in our server. Unless the machine is down, our containers can provide services in long run.
+
+* EOS explorer
+** mainet
+   https://bloks.io/account/matrixcasino
+** testnet
+   https://jungle.bloks.io/account/matrixcasino
