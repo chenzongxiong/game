@@ -83,3 +83,41 @@
 
 
 ** ~transfer~ action in eosio.token contract, shown in demo
+** ~getbriefmaps~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication
+   - uint64_t gameuuid: if game not found, return all games matching ~status~
+   - uin32_status: support *or* operation. for example, if ~status~ is 0x03, it means filter by *GAME_CLOSE* and *GAME_START*.
+     if ~status~ is 0x06, it means filter out all status *GAME_START* and *GAME_OVER*
+     - 0x01: GAME_CLOSE
+     - 0x02: GAME_START
+     - 0x04: GAME_OVER
+** ~getmapdetail~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication
+   - uint64_t gameuuid: the game id
+   - uint32_t waitlimit; the number of waiting users to return
+   - uint32_t schedlimit: the number of scheduled users to return
+   - uint32_t herolimit: the number of heroes to return
+
+** ~getmylineno~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication
+   - uint64_t gameuuid: the game id
+     NOTE: *lineno* in console output is the number of this user in this game
+
+     return is a *dictionary*
+
+** ~getheroes~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication
+   - uint64_t gameuuid: the game id
+   - uint32_t herolimit: the number of heroes to return
+
+     return is a *list*
+
+** ~getmysched~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication
+   - uint64_t gameuuid: the game id
+   - uint32_t schedlimit: the number of scheduled users to return
+
+     return is a *list*
+
+** ~getmydetail~
+   - eosio::name user:  the user's account, will trigger third part(such as *scatter*) authentication

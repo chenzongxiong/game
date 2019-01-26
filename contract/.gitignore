@@ -1,0 +1,5 @@
+scripts/node_modules/*
+scripts/config.json
+scripts/import_main_account.sh
+compiled_contracts/*
+data/*

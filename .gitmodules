@@ -1,3 +1,0 @@
-[submodule "contract/oraclize"]
-	path = contract/oraclize
-	url = https://github.com/oraclize/eos-api.git
