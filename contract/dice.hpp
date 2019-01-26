@@ -9,34 +9,14 @@
 
 /* DOING:
  * TODO: auto-play
- * DONE: call random function
- *    - DONE: add PCG random function
- *    - DONE: toss a dice
- *    - DONE: random initalize a st_game
- *       - DONE: random initalize all goals
- *       - DONE: random initalize inital postion in a st_game
  * TODO: advoid overlapping of steps in map, verify in backend
  *    - features in next version
- * DONE: show waiting timestamp
- * DONE: validate route steps, total steps should be equal to dice number
- * DONE: security checking
- * https://www.bcskill.com/index.php/archives/516.html
- *    DONE: Delay transfer -> rollback
- *    DONE: fake EOS tokens
- *    DONE: random number generator, use tapos block number and tapos block prefix
  * https://www.bcskill.com/index.php/archives/516.html
  * DONE: seperate awards transaction and move transaction
  * DONE: show st_hero board
  * DOING: generate goals randomly
  * TODO: help user buy cpu/ram/net
- * DOING: random function review
- * TODO: test multiple actions per transaction
- *       -- always failed, doesn't find out root cause
- * DONE: generate random number
- * DONE: efficiently schedule, via defered transaction
- * DONE: how to deal with left st_users if a st_game is closed ?
- * DONE: airdrop
- * DONE: LOG every transaction
+ * TODO: remove expired invitation links, to avoid spam users
  */
 
 
@@ -56,7 +36,7 @@ public:
         _games(receiver, code.value), _waitingpool(receiver, code.value),
         _scheduled_users(receiver, code.value), _rngtbl(receiver, code.value),
         _heroes(receiver, code.value), _winners(receiver, code.value),
-        _config(receiver, code.value)
+        _config(receiver, code.value), _registraters(receiver, code.value)
     {}
 
 private:
@@ -68,22 +48,9 @@ private:
     static constexpr uint8_t MAXGOALS = 10;
     static constexpr uint32_t MAXSIZE = 50;
 
-    // static constexpr float WINNER_PERCENT = 0.7;
-    // static constexpr float PARTICIPANTS_PERCENT = 0.1;
-    // static constexpr float PLATFORM_PERCENT  = 0.05;
-    // static constexpr float NEXT_GOAL_PERCENT = 0.05;
-    // static constexpr float LAST_GOAL_PERCENT = 0.05;
-    // static constexpr float DIVIDEND_POOL_PERCENT = 0.05;
-
-    // static constexpr float WINNER_PERCENT = 0.82;
-    // static constexpr float PLATFORM_PERCENT  = 0.03;
-    // static constexpr float NEXT_GOAL_PERCENT = 0.10;
-    // static constexpr float LAST_GOAL_PERCENT = 0.05;
-    // static constexpr float DIVIDEND_POOL_PERCENT = 0.00;
-
     // 1 step
+    static constexpr float DIVIDEND_POOL_PERCENT = 0.02 * 0.6;
     static constexpr float PLATFORM_PERCENT  = 0.02;
-    static constexpr float DIVIDEND_POOL_PERCENT = 0.00;
     // 2 step
     static constexpr float WINNER_PERCENT = 0.85;
     static constexpr float NEXT_GOAL_PERCENT = 0.10;
@@ -100,7 +67,6 @@ private:
 
     static constexpr uint32_t DELETED_GOAL = 0xffffffff;
 
-    // static constexpr uint32_t SCHED_TIMEOUT = 120;
     static constexpr uint32_t SCHED_TIMEOUT = 90;
 
     struct point {
@@ -215,25 +181,6 @@ private:
         uint64_t by_shadow_awards() const {
             return shadow_awards;
         }
-        // void debug() const {
-        //     eosio::print(">| ");
-        //     eosio::print("uuid:", uuid, ", ");
-        //     eosio::print("board_width:", board_width, ", ");
-        //     eosio::print("board_height:", board_height, ", ");
-        //     eosio::print("awards:", awards, ", ");
-        //     eosio::print("shadow_awards:", shadow_awards, ", ");
-        //     eosio::print("pos:", pos, ", ");
-        //     eosio::print("status: ", status, ", ");
-        //     point pt = point(pos);
-        //     eosio::print("pos: (", pt.row, ", ", pt.col, "), ");
-        //     for (uint32_t i = 0; i < goals.size(); i ++) {
-        //         point pt = point(goals[i]);
-        //         eosio::print("goal ", i, ": ", "(", pt.row, ", ", pt.col, "), ");
-        //     }
-        //     eosio::print("total_number: ", total_number, ", ");
-        //     // eosio::print("gamename: ", gamename.c_str(), ", ");
-        //     eosio::print(" |");
-        // }
     };
     struct [[eosio::table]] st_users {
         uint64_t uuid;
@@ -266,20 +213,6 @@ private:
         uint64_t get_secondary_5() const {
             return (uint64_t)sched_flag;
         }
-        // void debug() const {
-        //     eosio::print(">| ");
-        //     eosio::print("uuid: ", uuid, ", ");
-        //     eosio::print("game_uuid: ", gameuuid, ", ");
-        //     eosio::print("no: ", no, ", ");
-        //     eosio::print("user: ", user, ", ");
-        //     eosio::print("steps: ", steps, ", ");
-        //     eosio::print("timestamp: ", ts, ", ");
-        //     eosio::print("update timestamp: ", update_ts, ", ");
-        //     eosio::print("expired ts: ", expired_ts, ", ");
-        //     eosio::print("sched_flag: ", (uint32_t)sched_flag, ", ");
-        //     eosio::print(" |");
-        // }
-        // EOSLIB_SERIALIZE(st_users, (uuid)(gameuuid)(steps)(no)(user)(ts)(update_ts)(expired_ts)(proof)(sched_flag))
     };
     struct [[eosio::table]] st_hero {
         uint64_t uuid;
@@ -311,16 +244,6 @@ private:
         uint64_t get_secondary_5() const {
             return user.value;
         }
-        // void debug() const {
-        //     eosio::print(">| ");
-        //     eosio::print("ts: ", ts, ", ");
-        //     eosio::print("update_ts: ", update_ts, ", ");
-        //     eosio::print("user: ", user, ", ");
-        //     eosio::print("gameuuid: ", gameuuid, ", ");
-        //     eosio::print("awards: ", awards, ", ");
-        //     eosio::print("acc_awards: ", acc_awards, ", ");
-        //     eosio::print(" |");
-        // }
     };
 
     struct st_config {
@@ -406,6 +329,19 @@ private:
         eosio::checksum256 seed2;
         eosio::checksum256 seed3;
     };
+    TABLE st_registration {
+        eosio::name username;
+        eosio::name referuser;
+        time_t ts;
+        time_t update_ts;
+        uint8_t activate = 0;
+        uint64_t primary_key() const {
+            return username.value;
+        }
+        uint64_t by_activate() const {
+            return (uint64_t)(activate);
+        }
+    };
 public:
 
 private:
@@ -439,6 +375,11 @@ private:
     typedef eosio::multi_index<"winnertbl"_n, st_hero> winnertbl;
     herotbl _heroes;
     winnertbl _winners;
+
+    typedef eosio::multi_index<"registration"_n, st_registration,
+                               eosio::indexed_by<"activate"_n, eosio::const_mem_fun<st_registration, uint64_t, &st_registration::by_activate>>
+                               > registration_table;
+    registration_table _registraters;
 
     void update_heroes(eosio::name user, uint64_t awards) {
         auto h_it = _heroes.find(user.value);
@@ -510,6 +451,11 @@ public:
     [[eosio::action]] void setairdrop(uint32_t flag);
     [[eosio::action]] void setschednum(uint64_t schednum);
     [[eosio::action]] void showconfig();
+
+    // update invitation table
+    [[eosio::action]] void invite(eosio::name user, eosio::name referuser);
+    // remove deactivated
+    [[eosio::action]] void rmdeactive();
 
 private:
     void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed);

@@ -520,12 +520,40 @@ void dice::enter(eosio::name user) {
                 }
             }
 
-            // platform profit
-            int64_t platform_amount = data.quantity.amount * PLATFORM_PERCENT;
-            if (platform_amount > 0) {
-                inner_transfer(get_self(), platform, platform_amount, 0);
+            // dividend pool
+            int64_t dividend_amount = data.quantity.amount * DIVIDEND_POOL_PERCENT;
+            if (dividend_amount > 0) {
+                inner_transfer(get_self(), dividend_account, dividend_amount, 0);
             }
-            // TODO: dividend pool
+
+            // check if this user is invited by other guy
+            auto reg_it = _registraters.find(data.from.value);
+            if (reg_it == _registraters.cend()) {
+                // new user, insert him/her into registraters table
+                _registraters.emplace(_self, [&](auto &re) {
+                                                 re.username = user;
+                                                 re.referuser = _self;
+                                                 re.ts = now();
+                                                 re.update_ts = now();
+                                                 re.activate = (uint8_t)(1);
+                                             });
+                reg_it = _registraters.find(data.from.value);
+            } else {
+                if (reg_it->activate == 0) {
+                    _registraters.modify(reg_it, _self, [&](auto &re) {
+                                                            re.activate = (uint8_t)(1);
+                                                        });
+                }
+            }
+
+            eosio_assert(reg_it != _registraters.cend(), "user must exist at this step");
+            // inviter profit
+            int64_t inviter_amount = data.quantity.amount * PLATFORM_PERCENT * 0.1;
+            inner_transfer(_self, reg_it->referuser, inviter_amount, 0);
+            // platform profit
+            int64_t platform_amount = data.quantity.amount * PLATFORM_PERCENT * 0.3;
+            inner_transfer(_self, platform, platform_amount, 0);
+
         } else {
             // come here because someone send request directly and doesn't
             // pay enough fee. Never open a door for him, but we accept his fee
@@ -1180,6 +1208,24 @@ void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int 
 //         return;
 //     }
 //     eosio::print("step is not zero");
+void dice::invite(eosio::name user, eosio::name referuser) {
+    // 1. check referuser existent
+    // 2. check user already registered
+    require_auth(admin);
+    auto reg_it = _registraters.find(referuser.value);
+    eosio_assert(reg_it != _registraters.cend(), "referuser not existent.");
+
+    auto reg_it1 = _registraters.find(user.value);
+    eosio_assert(reg_it1 == _registraters.cend(), "user already exists");
+
+    _registraters.emplace(_self, [&](auto &re) {
+                                     re.username = user;
+                                     re.referuser = referuser;
+                                     re.ts = now();
+                                     re.update_ts = now();
+                                     re.activate = (uint8_t)0;
+                                 });
+}
 
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
@@ -1232,4 +1278,5 @@ EOSIO_DISPATCH2(dice,
                 (showconfig)
                 (setschednum)
                 (rmwaitusers)
+                (invite)
     )
