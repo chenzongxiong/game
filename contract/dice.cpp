@@ -531,8 +531,8 @@ void dice::enter(eosio::name user) {
             if (reg_it == _registraters.cend()) {
                 // new user, insert him/her into registraters table
                 _registraters.emplace(_self, [&](auto &re) {
-                                                 re.username = user;
-                                                 re.referuser = _self;
+                                                 re.username = data.from;
+                                                 re.referuser = platform;
                                                  re.ts = now();
                                                  re.update_ts = now();
                                                  re.activate = (uint8_t)(1);
@@ -547,12 +547,23 @@ void dice::enter(eosio::name user) {
             }
 
             eosio_assert(reg_it != _registraters.cend(), "user must exist at this step");
-            // inviter profit
-            int64_t inviter_amount = data.quantity.amount * PLATFORM_PERCENT * 0.1;
-            inner_transfer(_self, reg_it->referuser, inviter_amount, 0);
-            // platform profit
-            int64_t platform_amount = data.quantity.amount * PLATFORM_PERCENT * 0.3;
-            inner_transfer(_self, platform, platform_amount, 0);
+            if (reg_it->referuser == platform) {
+                int64_t platform_amount = data.quantity.amount * PLATFORM_PERCENT * 0.4;
+                if (platform_amount > 0) {
+                    inner_transfer(_self, platform, platform_amount, 0);
+                }
+            } else {
+                // inviter profit
+                int64_t inviter_amount = data.quantity.amount * PLATFORM_PERCENT * 0.1;
+                if (inviter_amount > 0) {
+                    inner_transfer(_self, reg_it->referuser, inviter_amount, 0);
+                }
+                // platform profit
+                int64_t platform_amount = data.quantity.amount * PLATFORM_PERCENT * 0.3;
+                if (platform_amount > 0) {
+                    inner_transfer(_self, platform, platform_amount, 0);
+                }
+            }
 
         } else {
             // come here because someone send request directly and doesn't
