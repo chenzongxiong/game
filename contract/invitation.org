@@ -1,0 +1,30 @@
+* invitation steps
+  - A user click an invitation link
+    + make sure this link is valid.
+      for example, a link like http://matr0x.com?ref=matrixcasino, we need to make sure
+      the provided user *matrixcasino* is valid
+
+    + the invitation link can be click by multiple times. However, all users can only be
+      invited once.
+
+    + if he/she(*matrixusers*) is already registered, then he/she click the invitation link, the invitor
+      will get no fund. In this case, *matrixcasino* won't build a relationship of invitation
+      between *matrixusers* and *matrixcasino*
+
+
+* TODO we need backend to handle invitation requests
+  - if a user comes into our website via a invitation link, the frontend needs to send a request to our
+    central backend, including the information of (register user, referuser). Here we can simply use json format like
+    #+BEGIN_EXAMPLE
+    POST /invite
+    body: {"username": <new username>, "referuser": <referred user> }
+    #+END_EXAMPLE
+    or
+    #+BEGIN_EXAMPLE
+    GET http://<host>:<port>?ref=<refuser>&username=<new username>
+    #+END_EXAMPLE
+  - when our backend receive this request, we will call our contract immediately and insert this row into EOS chain.
+
+    + Inside our contract, we will check
+      - whether the refer user existent or not
+      - check *new user* already existent or not
