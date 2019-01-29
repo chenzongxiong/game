@@ -28,6 +28,18 @@ services:
     volumes:
       - ./scripts/config.json:/opt/eosio/bin/config.json
 
+
+  invite:
+    build: .
+    restart: on-failure
+    command: ["node", "/opt/eosio/bin/invitation.js"]
+    environment:
+      - EOS_NET=testnet
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
+    ports:
+      - "8000:8000"
+
   rmexpiredmain:
     build: .
     restart: on-failure
@@ -54,3 +66,14 @@ services:
       - EOS_NET=mainet
     volumes:
       - ./scripts/config.json:/opt/eosio/bin/config.json
+
+  invitemain:
+    build: .
+    restart: on-failure
+    command: ["node", "/opt/eosio/bin/invitation.js"]
+    environment:
+      - EOS_NET=mainet
+    volumes:
+      - ./scripts/config.json:/opt/eosio/bin/config.json
+    ports:
+      - "8000:8000"
