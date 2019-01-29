@@ -71,6 +71,12 @@ const invite = async function(username, referuser) {
  *           description: request successfully
  */
 app.get('/newuser', async (req, res) => {
+  // console.log("========================================")
+  // console.log(req.query);
+  // console.log("========================================")
+  // console.log(req.body);
+  // console.log("========================================")
+  // console.log(req.params);
 
   let username = req.query.username;
   let referuser = req.query.ref;
@@ -78,7 +84,7 @@ app.get('/newuser', async (req, res) => {
   if (! referuser || ! username) {
     // res.json({msg: 'Invalid invitation params',
     //           status: 'success' });
-    console.log('invalid invitation params');
+    console.log(`invalid invitation params: username ${username}, referuser ${referuser}`);
     res.redirect('/');
     return;
   }
