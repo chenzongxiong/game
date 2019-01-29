@@ -71,21 +71,15 @@ const invite = async function(username, referuser) {
  *           description: request successfully
  */
 app.get('/newuser', async (req, res) => {
-  // console.log("========================================")
-  // console.log(req.query);
-  // console.log("========================================")
-  // console.log(req.body);
-  // console.log("========================================")
-  // console.log(req.params);
 
   let username = req.query.username;
   let referuser = req.query.ref;
 
   if (! referuser || ! username) {
-    // res.json({msg: 'Invalid invitation params',
-    //           status: 'success' });
     console.log(`invalid invitation params: username ${username}, referuser ${referuser}`);
-    res.redirect('/');
+    res.json({msg: 'Invalid invitation params',
+              redirect: '/',
+              status: 'success' });
     return;
   }
   try {
@@ -95,14 +89,15 @@ app.get('/newuser', async (req, res) => {
 
     await invite(username, referuser);
     console.log(`Insert ${username} into registration table.`);
-    // res.json({ msg: `Insert ${username} into registration table.`,
-    //            status: 'success'});
-    res.redirect('/');
+    res.json({ msg: `Insert ${username} into registration table.`,
+               redirect: '/',
+               status: 'success'});
+
   } catch (error) {
-    // res.json({ msg: new String(error),
-    //            status: 'fail' });
     console.log(error);
-    res.redirect('/');
+    res.json({ msg: new String(error),
+               redirect: '/',
+               status: 'fail' });
   }
 });
 
