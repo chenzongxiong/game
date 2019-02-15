@@ -457,6 +457,8 @@ public:
     // remove deactivated
     [[eosio::action]] void rmdeactive();
 
+    [[eosio::action]] void forcereg(eosio::name user);
+
 private:
     void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed);
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);

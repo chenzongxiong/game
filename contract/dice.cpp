@@ -1238,6 +1238,22 @@ void dice::invite(eosio::name user, eosio::name referuser) {
                                  });
 }
 
+void dice::forcereg(eosio::name user) {
+  require_auth(admin);
+  auto reg_it = _registraters.find(user.value);
+  eosio_assert(reg_it == _registraters.cend(), "user existent");
+
+  _registraters.emplace(_self, [&](auto &re) {
+                                 re.username = user;
+                                 re.referuser = platform;
+                                 re.ts = now();
+                                 re.update_ts = now();
+                                 re.activate = (uint8_t)(1);
+                               });
+
+
+}
+
 #define EOSIO_DISPATCH2( TYPE, MEMBERS )                                \
     extern "C" {                                                        \
         void apply( uint64_t receiver, uint64_t code, uint64_t action ) { \
@@ -1290,4 +1306,5 @@ EOSIO_DISPATCH2(dice,
                 (setschednum)
                 (rmwaitusers)
                 (invite)
+                (forcereg)
     )
