@@ -155,6 +155,20 @@ void dice::setgamestat(uint64_t gameuuid, uint32_t status) {
                                      });
 }
 
+void dice::setawards(uint64_t gameuuid, int64_t awards, int64_t sawards) {
+    require_auth(admin);
+    eosio_assert(awards > 0, "awards <= 0");
+    eosio_assert(sawards > 0, "sawards <= 0");
+    eosio_assert(sawards > awards, "sawards < awards");
+    auto _game = _games.find(gameuuid);
+    eosio_assert(_game != _games.cend(), "st_game not foud");
+    _games.modify(_game, get_self(), [&](auto &g) {
+                                         g.awards = awards;
+                                         g.shadow_awards = sawards;
+                                     });
+
+}
+
 void dice::rmexpired() {
     require_auth(admin);
 
@@ -328,12 +342,16 @@ void dice::sendtokens(eosio::name user, uint64_t gameuuid) {
     // for (auto _u : _scheduled_users) {
     //     participants.push_back(_u.user);
     // }
-
-    distribute(*_game,
-               user,
-               participants,
-               _winner->awards);
-    uint64_t real_awards = _winner->awards*WINNER_PERCENT;
+    uint64_t real_awards = 0;
+    if (freemap(*_game)) {
+        distributemyeos(* _game, user, real_awards);
+    } else {
+        distribute(*_game,
+                   user,
+                   participants,
+                   _winner->awards);
+        real_awards = _winner->awards*WINNER_PERCENT;
+    }
     update_heroes(user, real_awards);
 
     _winners.erase(_winner);
@@ -437,8 +455,27 @@ void dice::enter(eosio::name user) {
      * 3. increase shadow awards pool
      * 4. schedule the user to schedule table
      */
-    eosio_assert(user == "eosio.token"_n, "fake tokens");
     auto data = eosio::unpack_action_data<eosio_token_transfer>();
+    if (data.from == _self) {
+        eosio::print("{");
+        eosio::print("\"msg\": \"transfer action is trigger by platform, ignore it\"");
+        eosio::print("}");
+        return;
+    }
+
+    uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
+    eosio::print("gameuuid: ", gameuuid);
+    auto _game = get_game_by_uuid(gameuuid);
+    eosio_assert(_game != _games.cend(), "not found st_game.");
+    // eosio_assert(_game->status != GAME_OVER, "st_game is over");
+
+    if (freemap(*_game)) {
+        eosio_assert(user == "matrixtokens"_n, "free map");
+        entermyeos(user);
+        return;
+    }
+    eosio_assert(user == "eosio.token"_n, "fake tokens");
+
     if (data.from != get_self()) {
         eosio_assert(data.to == get_self(), "didn't transfer tokens to me");
 
@@ -447,9 +484,9 @@ void dice::enter(eosio::name user) {
         eosio_assert(data.quantity.symbol == eosio::symbol("EOS", 4), "symbol precision mismatch");
         eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
 
-        uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
-        auto _game = get_game_by_uuid(gameuuid);
-        eosio_assert(_game != _games.cend(), "not found st_game.");
+        // uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
+        // auto _game = get_game_by_uuid(gameuuid);
+        // eosio_assert(_game != _games.cend(), "not found st_game.");
         eosio_assert(_game->status != GAME_OVER, "st_game is over");
 
         if (data.quantity.amount >= _game->fee) { // pay enough fee
@@ -574,11 +611,74 @@ void dice::enter(eosio::name user) {
         }
     } else {
         eosio::print("{");
-        eosio::print("\"msg\": \"transfer action is trigger by platform, ignore it\"");
+        eosio::print("\"msg\": \"transfer action is trigger by platform, bug ?\"");
         eosio::print("}");
     }
 }
+void dice::entermyeos(eosio::name user) {
+    eosio_assert(user == "matrixtokens"_n, "must be MYEOS token");
+    auto data = eosio::unpack_action_data<eosio_token_transfer>();
+    if (data.from != _self) {
+        eosio_assert(data.to == _self, "didn't transfer tokens to me.");
+        eosio_assert(data.quantity.amount > 0, "must transfer positive quantity");
+        eosio_assert(data.quantity.symbol == eosio::symbol("MYEOS", 6), "symbol precision mismatch");
+        eosio_assert(data.memo.size() <= 256, "memo has more than 256 bytes");
+        uint64_t gameuuid = extract_gameuuid_from_memo(data.memo);
+        auto _game = get_game_by_uuid(gameuuid);
+        eosio_assert(_game != _games.cend(), "not found st_game.");
+        eosio_assert(_game->status != GAME_OVER, "st_game is over");
+        eosio_assert(freemap(*_game), "not a MYEOS game");
+        int64_t amount = data.quantity.amount;
+        if (amount >= _game->fee) {
+            uint64_t user_id = _waitingpool.available_primary_key();
+            uint128_t no = (uint128_t)-1;
+            uint128_t proof = (uint128_t)-1;
+            uint8_t sched_flag = (uint8_t)0;
+            time_t expired_ts = (time_t)-1;
+            uint32_t steps = 0;
+            _waitingpool.emplace(get_self(), [&](auto &u) {
+                                                 u.uuid = user_id;
+                                                 u.gameuuid = _game->uuid;
+                                                 u.no = no;
+                                                 u.user = data.from;
+                                                 u.steps = steps;
+                                                 u.ts = now();
+                                                 u.update_ts = now();
+                                                 u.sched_flag = sched_flag;
+                                                 u.expired_ts = expired_ts;
+                                             });
+            _games.modify(_game, get_self(), [&](auto &g) {
+                                                 g.total_number ++;
+                                             });
+            uint64_t seed = data.from.value + (uint64_t)(now());
+            update_global_seed(seed);
 
+            // log a user enter our game
+            eosio::action(
+                eosio::permission_level{_self, "active"_n},
+                _self, "setloguser"_n,
+                std::make_tuple(user_id,
+                                _game->uuid,
+                                steps,
+                                no,
+                                data.from,
+                                now(),
+                                now(),
+                                expired_ts,
+                                proof,
+                                sched_flag)).send();
+
+        } else {
+            eosio::print("{");
+            eosio::print("\"msg\": \"crackers come\"");
+            eosio::print("}");
+        }
+    } else {
+        eosio::print("{");
+        eosio::print("\"msg\": \"transfer action is trigger by platform, bug ?\"");
+        eosio::print("}");
+    }
+}
 // void dice::schedhelper(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t sender_id) {
 //     // only this contract can run
 //     require_auth(get_self());
@@ -746,7 +846,9 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
     auto _game = get_game_by_uuid(gameuuid);
     eosio_assert(_game != _games.cend(), "not found st_game");
     eosio_assert(_game->status == GAME_START, "st_game does not start");
-    incr_game_awards(*_game, _game->fee);
+    if (! freemap(*_game)) {
+        incr_game_awards(*_game, _game->fee);
+    }
 
     auto _user = is_sched_user_in_game(user, gameuuid);
     eosio_assert(_user != _scheduled_users.cend(), "user not in st_game");
@@ -927,9 +1029,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                              w.acc_awards = 0;
                                          });
             awards = _game->shadow_awards;
-
-            desc_game_shadow_awards(*_game, _game->shadow_awards);
-            desc_game_awards(*_game, _game->awards);
+            if (! freemap(*_game)) {
+                desc_game_shadow_awards(*_game, _game->shadow_awards);
+                desc_game_awards(*_game, _game->awards);
+            }
             // TOOD: remove all users in this game from waiting table and scheduled table
         } else {
             _winners.emplace(get_self(), [&](auto &w) {
@@ -944,9 +1047,10 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                                              w.acc_awards = 0;
                                    });
             awards = _game->awards;
-
-            desc_game_shadow_awards(*_game, _game->awards);
-            desc_game_awards(*_game, _game->awards);
+            if (! freemap(*_game)) {
+                desc_game_shadow_awards(*_game, _game->awards);
+                desc_game_awards(*_game, _game->awards);
+            }
         }
 
         // log for add winer user into pool
@@ -1187,6 +1291,30 @@ void dice::distribute(const st_game& _game,
     incr_game_awards(_game, next_goal_amount);
 }
 
+void dice::distributemyeos(const st_game& _game, const eosio::name& winner, uint64_t &real_awards) {
+    eosio_assert(freemap(_game), "not MYEOS-token game");
+    int reached = number_of_goals_reached(_game);
+    if (reached == 0) {
+        eosio_assert(false, "no reached goals. bug?");
+    }
+    int64_t total_amount = _game.shadow_awards;
+    eosio_assert(total_amount >= 0, "total amount < 0, bug?");
+    int64_t curr_amount = _game.awards;
+    int size = _game.goals.size();
+
+    int64_t d = (int64_t)((total_amount - (size - reached + 1) * curr_amount) / ((size - reached) * (size - reached + 1) / 2.0));
+    // eosio::print("d: ", d);
+    int64_t next_amount = curr_amount + d;
+
+    inner_transfer(get_self(), winner, curr_amount, 0);
+    real_awards = curr_amount;
+    _games.modify(_game, get_self(), [&](auto &g) {
+                                         g.awards = next_amount;
+                                         g.shadow_awards -= curr_amount;
+                                     });
+
+}
+
 void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int delay) {
 
     eosio::name permission = "active"_n;
@@ -1267,7 +1395,8 @@ void dice::forcereg(eosio::name user) {
                 }                                                       \
             }                                                           \
             /* does not allow destructor of thiscontract to run: eosio_exit(0); */ \
-            else if( eosio::name(code) == "eosio.token"_n && eosio::name(action) == "transfer"_n ) { \
+            else if( (eosio::name(code) == "eosio.token"_n || eosio::name(code) == "matrixtokens"_n ) && \
+                     eosio::name(action) == "transfer"_n ) {            \
                 void* buffer = nullptr;                                 \
                 size_t size = action_data_size();                       \
                 constexpr size_t max_stack_buffer_size = 512;           \
@@ -1307,4 +1436,5 @@ EOSIO_DISPATCH2(dice,
                 (rmwaitusers)
                 (invite)
                 (forcereg)
+                (setawards)
     )

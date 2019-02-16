@@ -1,0 +1,18 @@
+{
+"resources":[
+    {"name":"diceShow0_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow0_190115174104.png"},
+    {"name":"diceShow1_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow1_190115174104.png"},
+    {"name":"diceShow2_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow2_190115174104.png"},
+    {"name":"diceShow3_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow3_190115174104.png"},
+    {"name":"diceShow4_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow4_190115174104.png"},
+    {"name":"diceShow5_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow5_190115174104.png"},
+    {"name":"diceShow6_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow6_190115174104.png"},
+    {"name":"diceShow7_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow7_190115174104.png"},
+    {"name":"diceShow8_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow8_190115174104.png"},
+    {"name":"diceShow9_190115174104","type":"image","url":"assets/animate/common/diceMc/diceShow9_190115174104.png"},
+    {"name":"diceMc_animate_json","type":"json","url":"assets/animate/common/diceMc_190115174104.json"}
+],
+"groups":[
+    {"name":"diceMc_animate_group","keys":"diceShow0_190115174104,diceShow1_190115174104,diceShow2_190115174104,diceShow3_190115174104,diceShow4_190115174104,diceShow5_190115174104,diceShow6_190115174104,diceShow7_190115174104,diceShow8_190115174104,diceShow9_190115174104,diceMc_animate_json"}
+]
+}

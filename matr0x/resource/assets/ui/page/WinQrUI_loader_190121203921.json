@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"WinQrUI_img","type":"image","url":"assets/ui/page/WinQrUI_190121203921.png"},
+    {"name":"WinQrUI_json","type":"json","url":"assets/ui/page/WinQrUI_190121203921.json"}
+],
+"groups":[
+    {"name":"page_WinQrUI","keys":"WinQrUI_img,WinQrUI_json"}
+]
+}

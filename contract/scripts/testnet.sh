@@ -80,3 +80,7 @@ $cleos --url http://jungle2.cryptolions.io:80 transfer qazwsxedc123 matrixcasino
 # echo "====================debug===================="
 
 # $cleos --url http://jungle2.cryptolions.io:80 push action matrixcasino sendtokens '{"user": "arestest4321", "gameuuid": 0}' -p matrixcasino -f
+
+cleos --url http://jungle2.cryptolions.io:80 push action matrixcasino addgame '{"width": 23, "height": 23, "status": 2, "fee": 10, "gamename": "free1"}' -p matrixcasino -f
+
+cleos --url http://jungle2.cryptolions.io:80 push action matrixcasino setawards '{"gameuuid": 7, "awards": "5000", "sawards": "200000"}' -p matrixcasino -f

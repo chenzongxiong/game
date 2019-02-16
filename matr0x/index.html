@@ -1,0 +1,152 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Matr0x</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="full-screen" content="true" />
+    <meta name="screen-orientation" content="portrait" />
+    <meta name="x5-fullscreen" content="true" />
+    <meta name="360-fullscreen" content="true" />
+    <style>
+        html, body {
+            -ms-touch-action: none;
+            background: #000000;
+            padding: 0;
+            border: 0;
+            margin: 0;
+            height: 100%;
+        }
+    </style>
+	<script type="text/javascript" src="libs/eos/clipboard.min.js"></script>
+	<script src="libs/eos/scatterjs-core.min.js"></script>
+    <script src="libs/eos/scatterjs-plugin-eosjs.min.js"></script>
+    <script src="libs/eos/eos.min.js"></script>
+    <script type="text/javascript" src="libs/eos/eos.js"></script>
+    <script type="text/javascript" src="libs/eos/easy_eos.js?v=014243455"></script>
+    <script type="text/javascript" src="libs/eos/eos_admin.js"></script>
+    <script type="text/javascript" src="libs/eos/BigInteger.min.js"></script>
+    <script type="text/javascript" src="libs/eos/md5.min.js"></script>
+    <script src="https://eos-webchat.oss-cn-hongkong.aliyuncs.com/openjs/eoschat_openframe.js"></script> 
+</head>
+
+<body>
+    <div style="margin: auto;width: 100%;height: 100%;" class="egret-player"
+         data-entry-class="Main"
+         data-orientation="auto"
+         data-scale-mode="showAll"
+         data-frame-rate="30"
+         data-content-width="800"
+         data-content-height="1286"
+         data-show-paint-rect="false"
+         data-multi-fingered="2"
+         data-show-fps="false" data-show-log="false"
+         data-show-fps-style="x:0,y:0,size:12,textColor:0xffffff,bgAlpha:0.9">
+    </div>
+	<button id="copy" class="copy" data-clipboard-text="http://matr0x.com?ref=" style="display:none">点击测试1</button>
+<script>
+	/**
+     * 复制到剪切板
+     * @param text
+     */
+    function copyText(text){
+        document.getElementById("copy").setAttribute("data-clipboard-text",text);
+        document.getElementById("copy").click();
+    }
+    var clipboard = new ClipboardJS(".copy");
+    clipboard.on('success', function(e) {
+        alert('复制成功');
+        e.clearSelection();
+    });
+    clipboard.on('error', function(e) {
+        alert('您的浏览器无法复制');
+    });
+    var loadScript = function (list, callback) {
+        var loaded = 0;
+        var loadNext = function () {
+            loadSingleScript(list[loaded], function () {
+                loaded++;
+                if (loaded >= list.length) {
+                    callback();
+                }
+                else {
+                    loadNext();
+                }
+            })
+        };
+        loadNext();
+    };
+
+    var loadSingleScript = function (src, callback) {
+        var s = document.createElement('script');
+        s.async = false;
+        s.src = src;
+        s.addEventListener('load', function () {
+            s.parentNode.removeChild(s);
+            s.removeEventListener('load', arguments.callee, false);
+            callback();
+        }, false);
+        document.body.appendChild(s);
+    };
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', './manifest.json?v=' + Math.random(), true);
+    xhr.addEventListener("load", function () {
+        var manifest = JSON.parse(xhr.response);
+        var list = manifest.initial.concat(manifest.game);
+        loadScript(list, function () {
+            /**
+             * {
+             * "renderMode":, //Engine rendering mode, "canvas" or "webgl"
+             * "audioType": 0 //Use the audio type, 0: default, 2: web audio, 3: audio
+             * "antialias": //Whether the anti-aliasing is enabled in WebGL mode, true: on, false: off, defaults to false
+             * "calculateCanvasScaleFactor": //a function return canvas scale factor
+             * }
+             **/
+			 egret.sys.screenAdapter = new easy.EasyGameFullScreen();
+            egret.runEgret({ renderMode: "webgl", audioType: 0, calculateCanvasScaleFactor:function(context) {
+                var backingStore = context.backingStorePixelRatio ||
+                    context.webkitBackingStorePixelRatio ||
+                    context.mozBackingStorePixelRatio ||
+                    context.msBackingStorePixelRatio ||
+                    context.oBackingStorePixelRatio ||
+                    context.backingStorePixelRatio || 1;
+                return (window.devicePixelRatio || 1) / backingStore;
+            }});
+        });
+    });
+    xhr.send(null);
+	function openTableAddEvent() {
+        easy.EventManager.addEventListener("table_info", tableHandle, this);
+    }
+    function tableHandle(event) {
+		var tableName = event.getItem("table");
+		var tableData = event.getItem("data");
+		if(tableName=="gametbl"){//地图数据
+			game.GameData.getLayerData(tableData);
+		}else if(tableName=="schedtbl"){//排队队列数据
+			game.GameData.handleSchedData(tableData);
+		}else if(tableName=="waittbl"){//等待队列数据
+			game.GameData.waitData=[];
+            for (var i=0;i<tableData.length;i++){
+                if(tableData[i].sched_flag==0){
+                    game.GameData.waitData.push(tableData[i])
+                }
+            }
+            // console.log(game.GameData.waitData);
+            // console.log("等待队列");
+            easy.MyEvent.sendEvent("waitDataNew");
+		}
+    }
+</script>
+</body>
+    <script>
+        eoschatapi.initChatDialog({
+            icon_url:'resource/assets/icon.png',
+            channel_hash: 'KVPYW_ffHBsEFNbe1H_L8K',
+            dapp_contract_account:eos_contract_name
+        });
+    </script>
+</html>

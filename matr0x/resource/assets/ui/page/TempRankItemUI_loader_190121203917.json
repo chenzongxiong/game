@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempRankItemUI_img","type":"image","url":"assets/ui/page/TempRankItemUI_190121203917.png"},
+    {"name":"TempRankItemUI_json","type":"json","url":"assets/ui/page/TempRankItemUI_190121203917.json"}
+],
+"groups":[
+    {"name":"page_TempRankItemUI","keys":"TempRankItemUI_img,TempRankItemUI_json"}
+]
+}

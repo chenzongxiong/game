@@ -1,0 +1,10 @@
+{
+"resources":[
+    {"name":"game_common_img","type":"image","url":"assets/ui/game/game_190121202510.png"},
+    {"name":"game_common_json","type":"json","url":"assets/ui/game/game_190121202510.json"},
+    {"name":"bg","type":"image","url":"assets/ui/game/bg.jpg?ver=190121202510"}
+],
+"groups":[
+    {"name":"game_common_group","keys":"game_common_img,game_common_json,bg"}
+]
+}

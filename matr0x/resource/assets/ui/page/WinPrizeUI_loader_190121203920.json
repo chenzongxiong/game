@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"WinPrizeUI_img","type":"image","url":"assets/ui/page/WinPrizeUI_190121203920.png"},
+    {"name":"WinPrizeUI_json","type":"json","url":"assets/ui/page/WinPrizeUI_190121203920.json"}
+],
+"groups":[
+    {"name":"page_WinPrizeUI","keys":"WinPrizeUI_img,WinPrizeUI_json"}
+]
+}

@@ -192,10 +192,10 @@ class WaitingboardNamespace(Namespace):
         emit('response', {'status': 'success', 'event': 'connect', 'request_sid': request.sid, 'namespace': self.namespace});
 
 
-socketio.on_namespace(DiceNamespace('/dice'))
-socketio.on_namespace(WaitingboardNamespace('/waitingboard/default'))
-socketio.on_namespace(WaitingboardNamespace('/waitingboard/eos'))
-socketio.on_namespace(WaitingboardNamespace('/waitingboard/eth'))
+# socketio.on_namespace(DiceNamespace('/dice'))
+# socketio.on_namespace(WaitingboardNamespace('/waitingboard/default'))
+# socketio.on_namespace(WaitingboardNamespace('/waitingboard/eos'))
+# socketio.on_namespace(WaitingboardNamespace('/waitingboard/eth'))
 
 
 if __name__ == '__main__':

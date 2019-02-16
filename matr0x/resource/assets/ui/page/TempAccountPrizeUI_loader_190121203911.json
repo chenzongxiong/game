@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempAccountPrizeUI_img","type":"image","url":"assets/ui/page/TempAccountPrizeUI_190121203911.png"},
+    {"name":"TempAccountPrizeUI_json","type":"json","url":"assets/ui/page/TempAccountPrizeUI_190121203911.json"}
+],
+"groups":[
+    {"name":"page_TempAccountPrizeUI","keys":"TempAccountPrizeUI_img,TempAccountPrizeUI_json"}
+]
+}

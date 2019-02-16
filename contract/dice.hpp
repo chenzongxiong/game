@@ -458,8 +458,19 @@ public:
     [[eosio::action]] void rmdeactive();
 
     [[eosio::action]] void forcereg(eosio::name user);
+    [[eosio::action]] void setawards(uint64_t gameuuid, int64_t awards, int64_t sawards);
 
 private:
+    bool freemap(const st_game& _game) {
+        std::string gamename_str = _game.gamename.to_string();
+        if (gamename_str.compare(0, 4, "free") != 0) {
+            return false;
+        }
+        return true;
+    }
+    void entermyeos(eosio::name user);
+    void distributemyeos(const st_game &_game, const eosio::name &winner, uint64_t &real_awards);
+
     void sched(uint64_t user_id, uint64_t gameuuid, time_t ts, uint128_t seed);
     void moveright(eosio::name user, uint64_t gameuuid, uint32_t steps);
     void moveleft(eosio::name user, uint64_t gameuuid, uint32_t steps);
@@ -513,6 +524,15 @@ private:
         _games.modify(_game, get_self(), [&](auto &g) {
                                              g.status = GAME_OVER;
                                          });
+    }
+    int number_of_goals_reached(const st_game &_game) {
+        int i = 0;
+        for (auto _goal : _game.goals) {
+            if (_goal == DELETED_GOAL) {
+                i ++;
+            }
+        }
+        return i;
     }
     void incr_game_shadow_awards(const st_game &_game, const int64_t fee) {
         eosio_assert(_game.shadow_awards + fee >= _game.shadow_awards, "incr game shadow overflow");

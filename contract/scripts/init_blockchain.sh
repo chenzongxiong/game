@@ -82,6 +82,15 @@ cleos push action matrixtokens create '["matrixtokens", "1 MYEOS", ""]' -p matri
 cleos push action matrixtokens issue '["matrixmaster", "520000000.000000 MYEOS", "to matrixmaster pool"]' -p matrixtokens@active
 cleos push action matrixtokens issue '["matrixcasino", "480000000.000000 MYEOS", "to matrixcasino"]' -p matrixtokens@active
 
+cleos set account permission matrixcasino active '{"threshold": 1,"keys": [{"key": "EOS8Du668rSVDE3KkmhwKkmAyxdBd73B51FKE7SjkKe5YERBULMrw","weight": 1}],"accounts": [{"permission":{"actor":"matrixcasino","permission":"eosio.code"},"weight":1}]}' owner -p matrixcasino
+cleos push action matrixtokens transfer '["matrixcasino", "player1", "100000.000000 MYEOS", "to player1"]' -p matrixtokens -p matrixcasino
+cleos push action matrixtokens transfer '["matrixcasino", "player2", "100000.000000 MYEOS", "to player2"]' -p matrixtokens -p matrixcasino
+cleos push action matrixtokens transfer '["matrixcasino", "player3", "100000.000000 MYEOS", "to player3"]' -p matrixtokens -p matrixcasino
+cleos push action matrixtokens transfer '["matrixcasino", "player4", "100000.000000 MYEOS", "to player4"]' -p matrixtokens -p matrixcasino
+cleos push action matrixtokens transfer '["matrixcasino", "player5", "100000.000000 MYEOS", "to player5"]' -p matrixtokens -p matrixcasino
+
+
+
 echo "=== create user accounts ==="
 # script for create data into blockchain
 create_accounts.sh

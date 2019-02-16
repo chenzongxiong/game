@@ -9,7 +9,7 @@ cleos=/opt/eosio/bin/cleos
 
 $cleos -u http://jungle2.cryptolions.io:80 set contract matrixcasino /opt/eosio/bin/contract/compiled_contracts/dice --permission matrixcasino
 
-$cleos -u http://jungle2.cryptolions.io:80 push action matrixcasino setrate '[15]' -p matrixcasino
+$cleos -u http://jungle2.cryptolions.io:80 push action matrixcasino setrate '[120]' -p matrixcasino
 $cleos -u http://jungle2.cryptolions.io:80 push action matrixcasino setairdrop '[1]' -p matrixcasino
 
 # $cleos -u http://jungle2.cryptolions.io:80 set contract challenge123 /opt/eosio/bin/contract/compiled_contracts/challenge --permission challenge123

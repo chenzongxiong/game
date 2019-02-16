@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"PageGame_img","type":"image","url":"assets/ui/page/PageGame_190125190736.png"},
+    {"name":"PageGame_json","type":"json","url":"assets/ui/page/PageGame_190125190736.json"}
+],
+"groups":[
+    {"name":"page_PageGame","keys":"PageGame_img,PageGame_json,bg"}
+]
+}

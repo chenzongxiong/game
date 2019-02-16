@@ -1,0 +1,32 @@
+{
+  "name":"330_Game2",
+  "product":"game",
+  "version":"0.0.1",
+  "version_res":"190125191923",
+  "desc":"可自行加入其它配置信息,信息内容自行读取",
+  "report":{
+    "desc":"报表设置,name:渠道的名称,rate:汇率,unit:货币单位,storage:存储(local/net)",
+    "url":"http://www.easygame.org/",
+    "provide":1,
+    "channel":[
+      {"id":1, "app_id":"", "name":"easygame", "rate":1, "unit":"元", "storage":"local", "report":false}
+    ]
+  },
+  "dev":{
+    "desc":"开发模式设置,scale_mode:适配方式,debug:debug开关,loading_max:并发下载最大限制",
+    "scale_mode":"easygame",
+    "debug":"false",
+	"loading_max":5
+  },
+  "resource":"resource/",
+  "resource2":"resource2/",
+  "statistics":{
+    "view":false,
+    "win":false,
+    "btn":false,
+    "mc":false,
+    "list":false
+  },
+  "url":"",
+  "urlInvite":"http://13.229.149.74:8000/newuser"
+}

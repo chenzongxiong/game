@@ -1,0 +1,10 @@
+{
+"resources":[
+    {"name":"LoadMianUI_img","type":"image","url":"assets/ui/load/LoadMianUI_190117184345.png"},
+    {"name":"LoadMianUI_json","type":"json","url":"assets/ui/load/LoadMianUI_190117184345.json"},
+    {"name":"bgLoading","type":"image","url":"assets/ui/load/bgLoading.jpg?ver=190117184345"}
+],
+"groups":[
+    {"name":"loading_main","keys":"LoadMianUI_img,LoadMianUI_json,bgLoading"}
+]
+}

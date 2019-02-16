@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempGameMapUI_img","type":"image","url":"assets/ui/page/TempGameMapUI_190121203912.png"},
+    {"name":"TempGameMapUI_json","type":"json","url":"assets/ui/page/TempGameMapUI_190121203912.json"}
+],
+"groups":[
+    {"name":"page_TempGameMapUI","keys":"TempGameMapUI_img,TempGameMapUI_json"}
+]
+}

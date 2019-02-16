@@ -1,0 +1,10 @@
+{
+"resources":[
+    {"name":"WinScatterUI_img","type":"image","url":"assets/ui/page/WinScatterUI_190121205006.png"},
+    {"name":"WinScatterUI_json","type":"json","url":"assets/ui/page/WinScatterUI_190121205006.json"},
+    {"name":"2_5","type":"image","url":"assets/ui/page/2_5.png?ver=190121205006"}
+],
+"groups":[
+    {"name":"page_WinScatterUI","keys":"WinScatterUI_img,WinScatterUI_json,2_5"}
+]
+}

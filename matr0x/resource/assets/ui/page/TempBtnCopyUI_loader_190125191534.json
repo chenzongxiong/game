@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempBtnCopyUI_img","type":"image","url":"assets/ui/page/TempBtnCopyUI_190125191534.png"},
+    {"name":"TempBtnCopyUI_json","type":"json","url":"assets/ui/page/TempBtnCopyUI_190125191534.json"}
+],
+"groups":[
+    {"name":"page_TempBtnCopyUI","keys":"TempBtnCopyUI_img,TempBtnCopyUI_json"}
+]
+}

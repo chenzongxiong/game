@@ -1,0 +1,11 @@
+{
+"resources":
+	[
+		{"name":"loading_view","type":"image","url":"assets/loading/loading_view.png"}
+	],
+
+"groups":
+	[
+        {"name":"loading_view","keys":"loading_view"}
+	]
+}

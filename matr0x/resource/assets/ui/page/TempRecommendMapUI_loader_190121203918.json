@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempRecommendMapUI_img","type":"image","url":"assets/ui/page/TempRecommendMapUI_190121203918.png"},
+    {"name":"TempRecommendMapUI_json","type":"json","url":"assets/ui/page/TempRecommendMapUI_190121203918.json"}
+],
+"groups":[
+    {"name":"page_TempRecommendMapUI","keys":"TempRecommendMapUI_img,TempRecommendMapUI_json"}
+]
+}

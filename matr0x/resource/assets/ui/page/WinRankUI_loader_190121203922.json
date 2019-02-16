@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"WinRankUI_img","type":"image","url":"assets/ui/page/WinRankUI_190121203922.png"},
+    {"name":"WinRankUI_json","type":"json","url":"assets/ui/page/WinRankUI_190121203922.json"}
+],
+"groups":[
+    {"name":"page_WinRankUI","keys":"WinRankUI_img,WinRankUI_json"}
+]
+}

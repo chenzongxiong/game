@@ -1,0 +1,10 @@
+{
+"resources":[
+    {"name":"WinAuthorizationUI_img","type":"image","url":"assets/ui/page/WinAuthorizationUI_190121205050.png"},
+    {"name":"WinAuthorizationUI_json","type":"json","url":"assets/ui/page/WinAuthorizationUI_190121205050.json"},
+    {"name":"2_5","type":"image","url":"assets/ui/page/2_5.png?ver=190121205050"}
+],
+"groups":[
+    {"name":"page_WinAuthorizationUI","keys":"WinAuthorizationUI_img,WinAuthorizationUI_json,2_5"}
+]
+}

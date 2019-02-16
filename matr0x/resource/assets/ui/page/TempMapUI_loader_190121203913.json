@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempMapUI_img","type":"image","url":"assets/ui/page/TempMapUI_190121203913.png"},
+    {"name":"TempMapUI_json","type":"json","url":"assets/ui/page/TempMapUI_190121203913.json"}
+],
+"groups":[
+    {"name":"page_TempMapUI","keys":"TempMapUI_img,TempMapUI_json"}
+]
+}

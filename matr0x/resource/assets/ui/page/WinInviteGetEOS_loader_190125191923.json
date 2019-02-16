@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"WinInviteGetEOS_img","type":"image","url":"assets/ui/page/WinInviteGetEOS_190125191923.png"},
+    {"name":"WinInviteGetEOS_json","type":"json","url":"assets/ui/page/WinInviteGetEOS_190125191923.json"}
+],
+"groups":[
+    {"name":"page_WinInviteGetEOS","keys":"WinInviteGetEOS_img,WinInviteGetEOS_json"}
+]
+}

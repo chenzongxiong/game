@@ -1,0 +1,17 @@
+{
+"resources":[
+    {"name":"phone0_19011603954","type":"image","url":"assets/animate/common/phone/phone0_19011603954.png"},
+    {"name":"phone1_19011603954","type":"image","url":"assets/animate/common/phone/phone1_19011603954.png"},
+    {"name":"phone2_19011603954","type":"image","url":"assets/animate/common/phone/phone2_19011603954.png"},
+    {"name":"phone3_19011603954","type":"image","url":"assets/animate/common/phone/phone3_19011603954.png"},
+    {"name":"phone4_19011603954","type":"image","url":"assets/animate/common/phone/phone4_19011603954.png"},
+    {"name":"phone5_19011603954","type":"image","url":"assets/animate/common/phone/phone5_19011603954.png"},
+    {"name":"phone6_19011603954","type":"image","url":"assets/animate/common/phone/phone6_19011603954.png"},
+    {"name":"phone7_19011603954","type":"image","url":"assets/animate/common/phone/phone7_19011603954.png"},
+    {"name":"phone8_19011603954","type":"image","url":"assets/animate/common/phone/phone8_19011603954.png"},
+    {"name":"phone_animate_json","type":"json","url":"assets/animate/common/phone_19011603954.json"}
+],
+"groups":[
+    {"name":"phone_animate_group","keys":"phone0_19011603954,phone1_19011603954,phone2_19011603954,phone3_19011603954,phone4_19011603954,phone5_19011603954,phone6_19011603954,phone7_19011603954,phone8_19011603954,phone_animate_json"}
+]
+}

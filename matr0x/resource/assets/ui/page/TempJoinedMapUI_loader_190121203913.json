@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"TempJoinedMapUI_img","type":"image","url":"assets/ui/page/TempJoinedMapUI_190121203913.png"},
+    {"name":"TempJoinedMapUI_json","type":"json","url":"assets/ui/page/TempJoinedMapUI_190121203913.json"}
+],
+"groups":[
+    {"name":"page_TempJoinedMapUI","keys":"TempJoinedMapUI_img,TempJoinedMapUI_json"}
+]
+}

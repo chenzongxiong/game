@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"rule_0","type":"image","url":"assets/ui/page/rule_0.png?ver=190117115258"},
+    {"name":"rule_1","type":"image","url":"assets/ui/page/rule_1.png?ver=190117115258"}
+],
+"groups":[
+    {"name":"page_WinRuleBonusUI","keys":"rule_0,rule_1"}
+]
+}

@@ -1,0 +1,12 @@
+{
+"resources":[
+    {"name":"WinWelcomeUI_img","type":"image","url":"assets/ui/page/WinWelcomeUI_190121203925.png"},
+    {"name":"WinWelcomeUI_json","type":"json","url":"assets/ui/page/WinWelcomeUI_190121203925.json"},
+    {"name":"3_1_1","type":"image","url":"assets/ui/page/3_1_1.png?ver=190121203925"},
+    {"name":"3_1_2","type":"image","url":"assets/ui/page/3_1_2.png?ver=190121203925"},
+    {"name":"3_1_3","type":"image","url":"assets/ui/page/3_1_3.png?ver=190121203925"}
+],
+"groups":[
+    {"name":"page_WinWelcomeUI","keys":"WinWelcomeUI_img,WinWelcomeUI_json,3_1_1,3_1_2,3_1_3"}
+]
+}

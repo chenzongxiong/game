@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"WinBadUI_img","type":"image","url":"assets/ui/page/WinBadUI_190121203920.png"},
+    {"name":"WinBadUI_json","type":"json","url":"assets/ui/page/WinBadUI_190121203920.json"}
+],
+"groups":[
+    {"name":"page_WinBadUI","keys":"WinBadUI_img,WinBadUI_json"}
+]
+}

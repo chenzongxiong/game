@@ -1,0 +1,9 @@
+{
+"resources":[
+    {"name":"PageHome_img","type":"image","url":"assets/ui/page/PageHome_190125190926.png"},
+    {"name":"PageHome_json","type":"json","url":"assets/ui/page/PageHome_190125190926.json"}
+],
+"groups":[
+    {"name":"page_PageHome","keys":"PageHome_img,PageHome_json,bg"}
+]
+}
