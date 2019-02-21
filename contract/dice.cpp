@@ -1052,7 +1052,11 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
                 desc_game_awards(*_game, _game->awards);
             }
         }
-
+        if (_game->shadow_awards < 0) {
+            _games.modify(_game, _self, [&](auto g) {
+                                            g.shadow_awards = 0;
+                                        });
+        }
         // log for add winer user into pool
         eosio::action(
             eosio::permission_level{_self, "active"_n},
@@ -1287,8 +1291,11 @@ void dice::distribute(const st_game& _game,
     //         inner_transfer(get_self(), part, participants_amount, delay);
     //     }
     // }
-
-    incr_game_awards(_game, next_goal_amount);
+    if (next_goal_amount < _game.shadow_awards) {
+        incr_game_awards(_game, next_goal_amount);
+    } else {
+        incr_game_awards(_game, _game.shadow_awards);;
+    }
 }
 
 void dice::distributemyeos(const st_game& _game, const eosio::name& winner, uint64_t &real_awards) {
