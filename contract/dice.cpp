@@ -1,3 +1,4 @@
+
 #include "dice.hpp"
 
 
@@ -948,7 +949,12 @@ void dice::move(eosio::name user, uint64_t gameuuid, uint64_t steps) {
             desc_game_shadow_awards(*_game, _game->awards);
             desc_game_awards(*_game, _game->awards);
         }
-
+        if (_game->shadow_awards < 0) {
+            // might be some bugs in logic. enforce to 0
+            _games.modify(_game, get_self(), [&](auto &g){
+                                                 g.shadow_awards = 0;
+                                             });
+        }
         // log for add winer user into pool
         eosio::action(
             eosio::permission_level{_self, "active"_n},
@@ -1183,8 +1189,11 @@ void dice::distribute(const st_game& _game,
     //         inner_transfer(get_self(), part, participants_amount, delay);
     //     }
     // }
-
-    incr_game_awards(_game, next_goal_amount);
+    if (next_goal_amount < _game.shadow_awards) {
+        incr_game_awards(_game, next_goal_amount);
+    } else {
+        incr_game_awards(_game, _game.shadow_awards);
+    }
 }
 
 void dice::inner_transfer(eosio::name from, eosio::name to, int64_t amount, int delay) {
