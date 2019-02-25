@@ -1260,7 +1260,10 @@ void dice::distribute(const st_game& _game,
     // int64_t dividend_pool_amount = awards * DIVIDEND_POOL_PERCENT;
     int64_t next_goal_amount = awards * NEXT_GOAL_PERCENT;
     // int64_t last_goal_amount = awards * LAST_GOAL_PERCENT;
-
+    if (_game.status == GAME_OVER) {
+        winner_amount = awards;
+        next_goal_amount = 0;
+    }
     // to winner
     if (winner_amount > 0) {
         inner_transfer(get_self(), winner, winner_amount, 0);
@@ -1291,10 +1294,13 @@ void dice::distribute(const st_game& _game,
     //         inner_transfer(get_self(), part, participants_amount, delay);
     //     }
     // }
+    if (_game.status == GAME_OVER) {
+        return;
+    }
     if (next_goal_amount < _game.shadow_awards) {
         incr_game_awards(_game, next_goal_amount);
     } else {
-        incr_game_awards(_game, _game.shadow_awards);;
+        incr_game_awards(_game, _game.shadow_awards);
     }
 }
 
